@@ -80,10 +80,7 @@
 
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
-    let intervaloID = null;
-
-    const datosGuardados = JSON.parse(localStorage.getItem("datosOperador"));
-    if (datosGuardados) iniciarEnvioContinuo(datosGuardados.numeroEmpleado);
+    let watchId = null;
 
     window.registrarOperador = function () {
       const numero = document.getElementById("numeroEmpleado").value.trim();
@@ -101,6 +98,9 @@
         return;
       }
 
+      localStorage.setItem("datosOperador", JSON.stringify({ numeroEmpleado: numero }));
+
+      // Registrar los datos iniciales
       navigator.geolocation.getCurrentPosition((position) => {
         const ubicacion = {
           latitude: position.coords.latitude,
@@ -119,56 +119,41 @@
 
         set(ref(db, "ubicaciones/" + numero), data)
           .then(() => {
-            alert("¡Registro exitoso! Ahora se compartirá tu ubicación.");
-            localStorage.setItem("datosOperador", JSON.stringify({ numeroEmpleado: numero }));
-            iniciarEnvioContinuo(numero);
-          })
-          .catch((error) => {
-            alert("Error al guardar en Firebase: " + error.message);
+            alert("¡Registro exitoso! Ahora se compartirá tu ubicación en tiempo real.");
+            iniciarUbicacionContinua(numero);
           });
-      }, (error) => {
-        alert("Error al obtener ubicación: " + error.message);
-      }, {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0
       });
     };
 
-    function iniciarEnvioContinuo(numero) {
-      if (intervaloID) clearInterval(intervaloID);
+    function iniciarUbicacionContinua(numero) {
+      if (watchId) navigator.geolocation.clearWatch(watchId);
 
-      function enviarUbicacion() {
-        navigator.geolocation.getCurrentPosition((position) => {
-          const nuevaUbicacion = {
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude,
-            timestamp: Date.now(),
-            accuracy: position.coords.accuracy || 0
-          };
+      watchId = navigator.geolocation.watchPosition((position) => {
+        const ubicacion = {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          timestamp: Date.now(),
+          accuracy: position.coords.accuracy || 0
+        };
 
-          const updates = {
-            ubicacion: nuevaUbicacion
-          };
+        const actualiza = {
+          ubicacion: ubicacion
+        };
 
-          const historialRef = ref(db, "ubicaciones/" + numero + "/historial");
-          const nuevoPunto = push(historialRef);
-          set(nuevoPunto, nuevaUbicacion);
+        const historialRef = ref(db, "ubicaciones/" + numero + "/historial");
+        const nuevoPunto = push(historialRef);
+        set(nuevoPunto, ubicacion);
 
-          update(ref(db, "ubicaciones/" + numero), updates);
+        update(ref(db, "ubicaciones/" + numero), actualiza);
 
-          console.log("Ubicación actualizada:", nuevaUbicacion);
-        }, (error) => {
-          console.warn("Error al enviar ubicación:", error.message);
-        }, {
-          enableHighAccuracy: true,
-          timeout: 10000,
-          maximumAge: 0
-        });
-      }
-
-      enviarUbicacion();
-      intervaloID = setInterval(enviarUbicacion, 180000); // cada 3 minutos
+        console.log("Ubicación enviada:", ubicacion);
+      }, (error) => {
+        console.warn("Error al rastrear ubicación:", error);
+      }, {
+        enableHighAccuracy: true,
+        maximumAge: 0,
+        timeout: 15000
+      });
     }
   </script>
 
