@@ -147,16 +147,28 @@
             accuracy: position.coords.accuracy || 0
           };
 
-          const updates = { ubicacion: nuevaUbicacion };
+          const updates = {
+            ubicacion: nuevaUbicacion
+          };
+
           const historialRef = ref(db, "ubicaciones/" + numero + "/historial");
           const nuevoPunto = push(historialRef);
           set(nuevoPunto, nuevaUbicacion);
+
           update(ref(db, "ubicaciones/" + numero), updates);
+
+          console.log("Ubicación actualizada:", nuevaUbicacion);
+        }, (error) => {
+          console.warn("Error al enviar ubicación:", error.message);
+        }, {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0
         });
       }
 
       enviarUbicacion();
-      intervaloID = setInterval(enviarUbicacion, 180000); // 3 minutos
+      intervaloID = setInterval(enviarUbicacion, 180000); // cada 3 minutos
     }
   </script>
 
