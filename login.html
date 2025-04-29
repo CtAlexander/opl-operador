@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Iniciar Sesión - OPL demo</title>
+  <!-- Firebase App -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+  <style>
+    body {
+      margin: 0;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: linear-gradient(135deg, #1F3B73 0%, #2C82C9 100%);
+      font-family: 'Segoe UI', sans-serif;
+      color: white;
+    }
+    .form-container {
+      background: rgba(255, 255, 255, 0.1);
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 0 15px rgba(0,0,0,0.3);
+      text-align: center;
+      width: 300px;
+    }
+    h2 {
+      margin-bottom: 20px;
+    }
+    input, select {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 15px;
+      border-radius: 8px;
+      border: none;
+      outline: none;
+      font-size: 16px;
+    }
+    button {
+      width: 100%;
+      padding: 12px;
+      background-color: #FFC107;
+      color: black;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+    button:hover {
+      background-color: #e0a800;
+    }
+  </style>
+</head>
+<body>
+
+<div class="form-container">
+  <h2>Iniciar Sesión</h2>
+  <input type="email" id="correo" placeholder="Correo" required>
+  <input type="number" id="numeroEmpleado" placeholder="Número de empleado" required>
+  <input type="password" id="contraseña" placeholder="Contraseña" required>
+  <select id="puesto" required>
+    <option value="">Selecciona tu Puesto</option>
+    <option value="OPERADOR">OPERADOR</option>
+    <option value="SUPERVISOR">SUPERVISOR</option>
+  </select>
+  <button onclick="iniciarSesion()">Iniciar Sesión</button>
+</div>
+
+<script>
+  // Configuración Firebase de tu proyecto OPL DEMO
+  const firebaseConfig = {
+    apiKey: "AIzaSyBgVMJ4tZQ_0vnzobHCniKsM6dgjCyoauc",
+    authDomain: "opl-demo-20e5d.firebaseapp.com",
+    databaseURL: "https://opl-demo-20e5d-default-rtdb.firebaseio.com",
+    projectId: "opl-demo-20e5d",
+    storageBucket: "opl-demo-20e5d.firebasestorage.app",
+    messagingSenderId: "1015591087700",
+    appId: "1:1015591087700:web:55e01976e950b8251707c1",
+    measurementId: "G-6ML34RJ5KZ"
+  };
+
+  // Inicializar Firebase
+  firebase.initializeApp(firebaseConfig);
+  const database = firebase.database();
+
+  function iniciarSesion() {
+    const correo = document.getElementById('correo').value.trim();
+    const numeroEmpleado = document.getElementById('numeroEmpleado').value.trim();
+    const contraseña = document.getElementById('contraseña').value.trim();
+    const puesto = document.getElementById('puesto').value.trim();
+
+    if (!correo || !numeroEmpleado || !contraseña || !puesto) {
+      alert('Por favor llena todos los campos.');
+      return;
+    }
+
+    // Buscar en Firebase
+    database.ref('usuarios/' + numeroEmpleado).once('value')
+      .then((snapshot) => {
+        if (snapshot.exists()) {
+          const datos = snapshot.val();
+          if (datos.correo === correo && datos.contraseña === contraseña && datos.puesto === puesto) {
+            // Datos correctos
+            alert('Bienvenido ' + puesto + ' ' + numeroEmpleado);
+
+            // Redirigir según el puesto
+            if (puesto === 'OPERADOR') {
+              window.location.href = 'operadores.html';
+            } else if (puesto === 'SUPERVISOR') {
+              window.location.href = 'supervisores.html';
+            }
+          } else {
+            alert('Datos incorrectos. Verifica tu información.');
+          }
+        } else {
+          alert('Número de empleado no encontrado.');
+        }
+      })
+      .catch((error) => {
+        alert('Error al iniciar sesión: ' + error.message);
+      });
+  }
+</script>
+
+</body>
+</html>
