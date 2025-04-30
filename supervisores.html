@@ -6,7 +6,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
   <style>
-    body {
+     body {
       margin: 0;
       background: linear-gradient(135deg, #1F3B73, #2C82C9);
       font-family: 'Segoe UI', sans-serif;
@@ -118,7 +118,6 @@
     }
   </style>
 </head>
-
 <body>
 
 <div class="top-bar">
@@ -151,7 +150,6 @@
     messagingSenderId: "1015591087700",
     appId: "1:1015591087700:web:55e01976e950b8251707c1"
   };
-
   firebase.initializeApp(firebaseConfig);
   const database = firebase.database();
 
@@ -172,7 +170,6 @@
   function cargarOperadores() {
     const operadorSelect = document.getElementById("operadorSelect");
     operadorSelect.innerHTML = '<option value="">-- Selecciona un operador --</option>';
-
     database.ref("ubicaciones").once("value", snapshot => {
       snapshot.forEach(childSnapshot => {
         const numeroEmpleado = childSnapshot.key;
@@ -185,12 +182,9 @@
         }
       });
     });
-
     operadorSelect.addEventListener("change", function() {
       const numeroEmpleado = this.value;
-      if (numeroEmpleado) {
-        centrarEnOperador(numeroEmpleado);
-      }
+      if (numeroEmpleado) centrarEnOperador(numeroEmpleado);
     });
   }
 
@@ -219,12 +213,10 @@
 
   function centrarEnOperador(numeroEmpleado) {
     database.ref(`ubicaciones/${numeroEmpleado}/ubicacion`).once("value", snapshot => {
-      if (snapshot.exists()) {
-        const ubicacion = snapshot.val();
-        if (isFinite(ubicacion.latitude) && isFinite(ubicacion.longitude)) {
-          map.setCenter(new google.maps.LatLng(ubicacion.latitude, ubicacion.longitude));
-          map.setZoom(17);
-        }
+      const ubicacion = snapshot.val();
+      if (ubicacion && isFinite(ubicacion.latitude) && isFinite(ubicacion.longitude)) {
+        map.setCenter(new google.maps.LatLng(ubicacion.latitude, ubicacion.longitude));
+        map.setZoom(17);
       }
     });
   }
@@ -240,25 +232,27 @@
     document.getElementById('sidebar').classList.add('open');
     const historialDiv = document.getElementById("historialPuntos");
     historialDiv.innerHTML = '';
-
     coordenadasGlobal = [];
 
+    // Obtener historial del operador
     database.ref(`historial/${numeroEmpleado}`).once("value", snapshot => {
       snapshot.forEach(childSnapshot => {
         const punto = childSnapshot.val();
-        if (isFinite(punto.latitude) && isFinite(punto.longitude)) {
-          const fechaPunto = new Date(punto.timestamp).toISOString().split('T')[0];
+        const ubicacion = punto.ubicacion || {};
+        if (isFinite(ubicacion.latitude) && isFinite(ubicacion.longitude)) {
+          const fechaPunto = new Date(ubicacion.timestamp).toISOString().split('T')[0];
           if (!fechaFiltro || fechaPunto === fechaFiltro) {
             coordenadasGlobal.push({
-              lat: punto.latitude,
-              lng: punto.longitude,
-              timestamp: punto.timestamp
+              lat: ubicacion.latitude,
+              lng: ubicacion.longitude,
+              timestamp: ubicacion.timestamp
             });
           }
         }
       });
 
-      coordenadasGlobal.forEach((punto, index) => {
+      // Mostrar puntos en la barra lateral
+      coordenadasGlobal.forEach(punto => {
         const fechaHora = new Date(punto.timestamp).toLocaleString();
         const div = document.createElement("div");
         div.className = "point-item";
@@ -285,6 +279,7 @@
     script.defer = true;
     document.head.appendChild(script);
   }
+
   window.onload = loadGoogleMapsAPI;
 </script>
 
