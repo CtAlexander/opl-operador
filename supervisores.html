@@ -157,6 +157,10 @@
   let markers = {};
   let polylines = [];
   let coordenadasGlobal = [];
+  let recorridos = {}; // Guardará las polilíneas por operador
+  let marcadoresHistorial = [];
+
+
 
   function initMap() {
     map = new google.maps.Map(document.getElementById("map"), {
@@ -206,6 +210,24 @@
             });
             markers[numeroEmpleado] = marker;
           }
+          // Agregar al historial de ruta y dibujar línea
+if (!recorridos[numeroEmpleado]) {
+  recorridos[numeroEmpleado] = {
+    coordenadas: [],
+    polyline: new google.maps.Polyline({
+      path: [],
+      geodesic: true,
+      strokeColor: "#00FF00",
+      strokeOpacity: 1.0,
+      strokeWeight: 3,
+      map: map
+    })
+  };
+}
+
+recorridos[numeroEmpleado].coordenadas.push(latLng);
+recorridos[numeroEmpleado].polyline.setPath(recorridos[numeroEmpleado].coordenadas);
+
         }
       });
     });
@@ -258,9 +280,21 @@
         div.className = "point-item";
         div.innerHTML = `<span class="icono-ubicacion">📌</span><strong>${fechaHora}</strong><br>Lat: ${punto.lat.toFixed(5)}, Lng: ${punto.lng.toFixed(5)}`;
         div.onclick = () => {
-          map.setCenter(new google.maps.LatLng(punto.lat, punto.lng));
-          map.setZoom(18);
-        };
+  const latLng = new google.maps.LatLng(punto.lat, punto.lng);
+  map.setCenter(latLng);
+  map.setZoom(18);
+
+  const marker = new google.maps.Marker({
+  position: latLng,
+  map: map,
+  title: "Ubicación visitada",
+  icon: "http://maps.google.com/mapfiles/ms/icons/green-dot.png"
+});
+marcadoresHistorial.push(marker);
+
+  
+};
+
         historialDiv.appendChild(div);
       });
 
@@ -279,8 +313,17 @@
     script.defer = true;
     document.head.appendChild(script);
   }
-
   window.onload = loadGoogleMapsAPI;
+
+ function cerrarSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+
+  // Limpiar marcadores verdes del historial
+  marcadoresHistorial.forEach(marker => marker.setMap(null));
+  marcadoresHistorial = [];
+}
+
+
 </script>
 
 </body>
