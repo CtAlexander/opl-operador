@@ -6,191 +6,209 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
   <style>
-  
-  :root {
-    --azul-primario: #1F3B73;
-    --azul-secundario: #2C82C9;
-    --amarillo: #FFC107;
-    --texto-blanco: #ffffff;
-  }
 
-  body {
-    margin: 0;
-    background: linear-gradient(135deg, var(--azul-primario), var(--azul-secundario));
-    font-family: 'Segoe UI', sans-serif;
-    color: var(--texto-blanco);
-    display: flex;
-    flex-direction: column;
-    height: 100vh;
-    overflow: hidden;
-  }
+  .marca-de-agua {
+  position: fixed;
+  bottom: 10px;
+  right: 10px;
+  opacity: 0.2;
+  font-size: 32px; /* Aumentado */
+  color: black;
+  font-weight: bold;
+  pointer-events: none;
+  user-select: none;
+  z-index: 9999;
+}
 
-  .top-bar {
-    width: 100%;
-    background: rgba(255, 255, 255, 0.08);
-    backdrop-filter: blur(12px);
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: center;
-    padding: 20px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-    gap: 10px;
-  }
+    :root {
+      --azul-primario: #1F3B73;
+      --azul-secundario: #2C82C9;
+      --amarillo: #FFC107;
+      --texto-blanco: #ffffff;
+    }
 
-  .top-bar select,
-  .top-bar input[type="date"],
-  .top-bar button {
-    padding: 14px 18px;
-    border: none;
-    border-radius: 12px;
-    font-size: 15px;
-    outline: none;
-    font-weight: 500;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
-    transition: all 0.3s ease;
-  }
-
-  .top-bar select,
-  .top-bar input[type="date"] {
-    background: rgba(255, 255, 255, 0.9);
-    color: var(--azul-primario);
-    min-width: 180px;
-  }
-
-  .top-bar button {
-    background-color: var(--amarillo);
-    color: #000;
-    font-weight: bold;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .top-bar button:hover {
-    background-color: #e0a800;
-    transform: scale(1.05);
-  }
-
-  #map {
-    flex: 1;
-    width: 100%;
-    border-top: 2px solid rgba(255,255,255,0.2);
-  }
-
-  #sidebar {
-    position: fixed;
-    top: 0;
-    right: -100%;
-    width: 340px;
-    height: 100%;
-    background: rgba(31, 59, 115, 0.95);
-    backdrop-filter: blur(10px);
-    transition: right 0.4s ease;
-    overflow-y: auto;
-    padding: 25px;
-    z-index: 1000;
-    box-shadow: -6px 0 20px rgba(0, 0, 0, 0.4);
-  }
-
-  #sidebar.open {
-    right: 0;
-  }
-
-  #sidebar h3 {
-    color: var(--amarillo);
-    margin-top: 0;
-    margin-bottom: 15px;
-    font-size: 18px;
-    border-bottom: 1px solid rgba(255,255,255,0.2);
-    padding-bottom: 10px;
-  }
-
-  .point-item {
-    background: rgba(255, 255, 255, 0.1);
-    margin-bottom: 12px;
-    padding: 14px;
-    border-radius: 10px;
-    cursor: pointer;
-    transition: 0.3s ease;
-    font-size: 15px;
-    border: 1px solid rgba(255,255,255,0.08);
-  }
-
-  .point-item:hover {
-    background: rgba(255, 255, 255, 0.25);
-    transform: scale(1.02);
-  }
-
-  #closeSidebar {
-    background: var(--amarillo);
-    color: black;
-    border: none;
-    border-radius: 10px;
-    padding: 12px;
-    font-weight: bold;
-    cursor: pointer;
-    width: 100%;
-    margin-bottom: 20px;
-    transition: all 0.3s ease;
-  }
-
-  #closeSidebar:hover {
-    background-color: #e0a800;
-    transform: scale(1.02);
-  }
-
-  .icono-ubicacion {
-    margin-right: 8px;
-    font-size: 18px;
-  }
-
-  .stats {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: center;
-    margin-left: 10px;
-    gap: 12px;
-  }
-
-  .stats p {
-    margin: 0;
-    font-weight: bold;
-    background: rgba(255, 255, 255, 0.08);
-    padding: 8px 14px;
-    border-radius: 10px;
-    font-size: 14px;
-    border: 1px solid rgba(255,255,255,0.1);
-  }
-
-  @media (max-width: 768px) {
-    .top-bar {
+    body {
+      margin: 0;
+      background: linear-gradient(135deg, var(--azul-primario), var(--azul-secundario));
+      font-family: 'Segoe UI', sans-serif;
+      color: var(--texto-blanco);
+      display: flex;
       flex-direction: column;
-      align-items: stretch;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .top-bar {
+      width: 100%;
+      background: rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(12px);
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      gap: 10px;
+      z-index: 1;
     }
 
     .top-bar select,
     .top-bar input[type="date"],
     .top-bar button {
+      padding: 14px 18px;
+      border: none;
+      border-radius: 12px;
+      font-size: 15px;
+      outline: none;
+      font-weight: 500;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+      transition: all 0.3s ease;
+    }
+
+    .top-bar select,
+    .top-bar input[type="date"] {
+      background: rgba(255, 255, 255, 0.9);
+      color: var(--azul-primario);
+      min-width: 180px;
+    }
+
+    .top-bar button {
+      background-color: var(--amarillo);
+      color: #000;
+      font-weight: bold;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .top-bar button:hover {
+      background-color: #e0a800;
+      transform: scale(1.05);
+    }
+
+    #map {
+      flex: 1;
       width: 100%;
-      max-width: 90%;
+      border-top: 2px solid rgba(255,255,255,0.2);
+      z-index: 1;
     }
 
     #sidebar {
-      width: 100%;
+      position: fixed;
+      top: 0;
       right: -100%;
+      width: 340px;
+      height: 100%;
+      background: rgba(31, 59, 115, 0.95);
+      backdrop-filter: blur(10px);
+      transition: right 0.4s ease;
+      overflow-y: auto;
+      padding: 25px;
+      z-index: 1000;
+      box-shadow: -6px 0 20px rgba(0, 0, 0, 0.4);
     }
 
     #sidebar.open {
       right: 0;
     }
-  }
 
+    #sidebar h3 {
+      color: var(--amarillo);
+      margin-top: 0;
+      margin-bottom: 15px;
+      font-size: 18px;
+      border-bottom: 1px solid rgba(255,255,255,0.2);
+      padding-bottom: 10px;
+    }
+
+    .point-item {
+      background: rgba(255, 255, 255, 0.1);
+      margin-bottom: 12px;
+      padding: 14px;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: 0.3s ease;
+      font-size: 15px;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .point-item:hover {
+      background: rgba(255, 255, 255, 0.25);
+      transform: scale(1.02);
+    }
+
+    #closeSidebar {
+      background: var(--amarillo);
+      color: black;
+      border: none;
+      border-radius: 10px;
+      padding: 12px;
+      font-weight: bold;
+      cursor: pointer;
+      width: 100%;
+      margin-bottom: 20px;
+      transition: all 0.3s ease;
+    }
+
+    #closeSidebar:hover {
+      background-color: #e0a800;
+      transform: scale(1.02);
+    }
+
+    .icono-ubicacion {
+      margin-right: 8px;
+      font-size: 18px;
+    }
+
+    .stats {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      margin-left: 10px;
+      gap: 12px;
+    }
+
+    .stats p {
+      margin: 0;
+      font-weight: bold;
+      background: rgba(255, 255, 255, 0.08);
+      padding: 8px 14px;
+      border-radius: 10px;
+      font-size: 14px;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    @media (max-width: 768px) {
+      .top-bar {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .top-bar select,
+      .top-bar input[type="date"],
+      .top-bar button {
+        width: 100%;
+        max-width: 90%;
+      }
+
+      #sidebar {
+        width: 100%;
+        right: -100%;
+      }
+
+      #sidebar.open {
+        right: 0;
+      }
+    }
   </style>
 </head>
 <body>
+
+<!-- ✅ Marca de agua -->
+<div class="marca-de-agua">ALFA 4 Innovación</div>
+
 
 <div class="top-bar">
   <select id="operadorSelect">
@@ -207,6 +225,8 @@
   </div>
 </div>
 
+
+
 <div id="map"></div>
 
 <div id="sidebar">
@@ -214,6 +234,8 @@
   <h3>Historial de puntos</h3>
   <div id="historialPuntos"></div>
 </div>
+
+
 
 <script>
   const firebaseConfig = {
@@ -383,6 +405,10 @@ if (fechaFiltro) {
         const div = document.createElement("div");
         div.className = "point-item";
         div.innerHTML = `<span class="icono-ubicacion">📌</span><strong>${fechaHora}</strong><br>Lat: ${punto.lat.toFixed(5)}, Lng: ${punto.lng.toFixed(5)}`;
+        obtenerDireccion(punto.lat, punto.lng, (direccion) => {
+  div.innerHTML += `<br><small>${direccion}</small>`;
+});
+
         div.onclick = () => {
   const latLng = new google.maps.LatLng(punto.lat, punto.lng);
   map.setCenter(latLng);
