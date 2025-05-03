@@ -6,116 +6,188 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
   <style>
-     body {
-      margin: 0;
-      background: linear-gradient(135deg, #1F3B73, #2C82C9);
-      font-family: 'Segoe UI', sans-serif;
-      color: white;
-      display: flex;
-      flex-direction: column;
-      height: 100vh;
-    }
+  
+  :root {
+    --azul-primario: #1F3B73;
+    --azul-secundario: #2C82C9;
+    --amarillo: #FFC107;
+    --texto-blanco: #ffffff;
+  }
+
+  body {
+    margin: 0;
+    background: linear-gradient(135deg, var(--azul-primario), var(--azul-secundario));
+    font-family: 'Segoe UI', sans-serif;
+    color: var(--texto-blanco);
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  .top-bar {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(12px);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    gap: 10px;
+  }
+
+  .top-bar select,
+  .top-bar input[type="date"],
+  .top-bar button {
+    padding: 14px 18px;
+    border: none;
+    border-radius: 12px;
+    font-size: 15px;
+    outline: none;
+    font-weight: 500;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+    transition: all 0.3s ease;
+  }
+
+  .top-bar select,
+  .top-bar input[type="date"] {
+    background: rgba(255, 255, 255, 0.9);
+    color: var(--azul-primario);
+    min-width: 180px;
+  }
+
+  .top-bar button {
+    background-color: var(--amarillo);
+    color: #000;
+    font-weight: bold;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .top-bar button:hover {
+    background-color: #e0a800;
+    transform: scale(1.05);
+  }
+
+  #map {
+    flex: 1;
+    width: 100%;
+    border-top: 2px solid rgba(255,255,255,0.2);
+  }
+
+  #sidebar {
+    position: fixed;
+    top: 0;
+    right: -100%;
+    width: 340px;
+    height: 100%;
+    background: rgba(31, 59, 115, 0.95);
+    backdrop-filter: blur(10px);
+    transition: right 0.4s ease;
+    overflow-y: auto;
+    padding: 25px;
+    z-index: 1000;
+    box-shadow: -6px 0 20px rgba(0, 0, 0, 0.4);
+  }
+
+  #sidebar.open {
+    right: 0;
+  }
+
+  #sidebar h3 {
+    color: var(--amarillo);
+    margin-top: 0;
+    margin-bottom: 15px;
+    font-size: 18px;
+    border-bottom: 1px solid rgba(255,255,255,0.2);
+    padding-bottom: 10px;
+  }
+
+  .point-item {
+    background: rgba(255, 255, 255, 0.1);
+    margin-bottom: 12px;
+    padding: 14px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: 0.3s ease;
+    font-size: 15px;
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+
+  .point-item:hover {
+    background: rgba(255, 255, 255, 0.25);
+    transform: scale(1.02);
+  }
+
+  #closeSidebar {
+    background: var(--amarillo);
+    color: black;
+    border: none;
+    border-radius: 10px;
+    padding: 12px;
+    font-weight: bold;
+    cursor: pointer;
+    width: 100%;
+    margin-bottom: 20px;
+    transition: all 0.3s ease;
+  }
+
+  #closeSidebar:hover {
+    background-color: #e0a800;
+    transform: scale(1.02);
+  }
+
+  .icono-ubicacion {
+    margin-right: 8px;
+    font-size: 18px;
+  }
+
+  .stats {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    margin-left: 10px;
+    gap: 12px;
+  }
+
+  .stats p {
+    margin: 0;
+    font-weight: bold;
+    background: rgba(255, 255, 255, 0.08);
+    padding: 8px 14px;
+    border-radius: 10px;
+    font-size: 14px;
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+
+  @media (max-width: 768px) {
     .top-bar {
-      width: 100%;
-      background: rgba(255, 255, 255, 0.1);
-      backdrop-filter: blur(12px);
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      justify-content: center;
-      padding: 15px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      flex-direction: column;
+      align-items: stretch;
     }
-    .top-bar select, .top-bar input[type="date"], .top-bar button {
-      margin: 8px;
-      padding: 12px 16px;
-      border: none;
-      border-radius: 10px;
-      font-size: 16px;
-      outline: none;
-    }
-    .top-bar select, .top-bar input[type="date"] {
-      background: rgba(255, 255, 255, 0.8);
-      color: #1F3B73;
-      font-weight: 600;
-    }
+
+    .top-bar select,
+    .top-bar input[type="date"],
     .top-bar button {
-      background-color: #FFC107;
-      color: black;
-      font-weight: bold;
-      cursor: pointer;
-      transition: background-color 0.3s ease;
-    }
-    .top-bar button:hover {
-      background-color: #e0a800;
-    }
-    #map {
-      flex: 1;
       width: 100%;
-      border-top: 2px solid rgba(255,255,255,0.2);
+      max-width: 90%;
     }
-    /* Sidebar */
+
     #sidebar {
-      position: fixed;
-      top: 0;
-      right: -320px;
-      width: 320px;
-      height: 100%;
-      background: rgba(31, 59, 115, 0.9);
-      backdrop-filter: blur(10px);
-      transition: right 0.4s ease;
-      overflow-y: auto;
-      padding: 25px;
-      z-index: 999;
-      box-shadow: -4px 0 20px rgba(0,0,0,0.5);
+      width: 100%;
+      right: -100%;
     }
+
     #sidebar.open {
       right: 0;
     }
-    #sidebar h3 {
-      color: #FFC107;
-      margin-top: 0;
-      margin-bottom: 15px;
-    }
-    .point-item {
-      background: rgba(255, 255, 255, 0.15);
-      margin-bottom: 12px;
-      padding: 12px;
-      border-radius: 10px;
-      cursor: pointer;
-      transition: background 0.3s ease;
-      font-size: 15px;
-    }
-    .point-item:hover {
-      background: rgba(255, 255, 255, 0.3);
-    }
-    #closeSidebar {
-      background: #FFC107;
-      color: black;
-      border: none;
-      border-radius: 8px;
-      padding: 10px;
-      font-weight: bold;
-      cursor: pointer;
-      width: 100%;
-      margin-bottom: 15px;
-    }
-    .icono-ubicacion {
-      margin-right: 8px;
-      font-size: 18px;
-    }
-    /* Estadísticas pequeñas */
-    .stats {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      justify-content: center;
-      margin-left: 10px;
-    }
-    .stats p {
-      margin: 0 10px;
-      font-weight: bold;
-    }
+  }
+
   </style>
 </head>
 <body>
@@ -159,6 +231,18 @@
   let coordenadasGlobal = [];
   let recorridos = {}; // Guardará las polilíneas por operador
   let marcadoresHistorial = [];
+  function calcularDistanciaKm(lat1, lon1, lat2, lon2) {
+  const R = 6371; // Radio de la Tierra en km
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = 
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
 
 
 
@@ -186,10 +270,21 @@
         }
       });
     });
-    operadorSelect.addEventListener("change", function() {
-      const numeroEmpleado = this.value;
-      if (numeroEmpleado) centrarEnOperador(numeroEmpleado);
-    });
+   operadorSelect.addEventListener("change", function() {
+  // Limpiar todas las polilíneas actuales del mapa
+  Object.values(recorridos).forEach(r => {
+    r.polyline.setMap(null);
+  });
+  recorridos = {}; // Reiniciar el objeto de recorridos
+
+  // También puedes borrar los marcadores verdes del historial si quieres
+  marcadoresHistorial.forEach(marker => marker.setMap(null));
+  marcadoresHistorial = [];
+
+  const numeroEmpleado = this.value;
+  if (numeroEmpleado) centrarEnOperador(numeroEmpleado);
+});
+
   }
 
   function escucharUbicaciones() {
@@ -249,7 +344,13 @@ recorridos[numeroEmpleado].polyline.setPath(recorridos[numeroEmpleado].coordenad
       alert("Selecciona un operador primero.");
       return;
     }
-    const fechaFiltro = document.getElementById("fechaFiltro").value;
+
+   let fechaFiltro = document.getElementById("fechaFiltro").value;
+if (fechaFiltro) {
+  const fechaObj = new Date(fechaFiltro);
+  fechaFiltro = fechaObj.toISOString().split('T')[0]; // Asegura formato YYYY-MM-DD
+}
+
 
     document.getElementById('sidebar').classList.add('open');
     const historialDiv = document.getElementById("historialPuntos");
@@ -298,9 +399,26 @@ marcadoresHistorial.push(marker);
         historialDiv.appendChild(div);
       });
 
-      document.getElementById('puntos').innerText = `Puntos: ${coordenadasGlobal.length}`;
+     document.getElementById('puntos').innerText = `Puntos: ${coordenadasGlobal.length}`;
+
+// Calcular distancia total
+let distanciaTotal = 0;
+for (let i = 1; i < coordenadasGlobal.length; i++) {
+  const p1 = coordenadasGlobal[i - 1];
+  const p2 = coordenadasGlobal[i];
+  distanciaTotal += calcularDistanciaKm(p1.lat, p1.lng, p2.lat, p2.lng);
+}
+document.getElementById('distancia').innerText = `Distancia: ${distanciaTotal.toFixed(2)} km`;
+
+      if (coordenadasGlobal.length === 0) {
+  const msg = document.createElement("div");
+  msg.className = "point-item";
+  msg.innerHTML = "📅 No se encontraron registros para esta fecha.";
+  historialDiv.appendChild(msg);
+ }
     });
   }
+
 
   function cerrarSidebar() {
     document.getElementById('sidebar').classList.remove('open');
@@ -321,6 +439,12 @@ marcadoresHistorial.push(marker);
   // Limpiar marcadores verdes del historial
   marcadoresHistorial.forEach(marker => marker.setMap(null));
   marcadoresHistorial = [];
+  
+// Volver a centrar en el operador seleccionado
+  const numeroEmpleado = document.getElementById("operadorSelect").value;
+  if (numeroEmpleado) {
+    centrarEnOperador(numeroEmpleado);
+  }
 }
 
 
