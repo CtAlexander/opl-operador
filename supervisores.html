@@ -198,6 +198,9 @@
   </select>
   <input type="date" id="fechaFiltro">
   <button onclick="mostrarSidebar()">Ver Historial</button>
+  <button onclick="exportarHistorial()">Exportar</button>
+  <button onclick="reiniciarVista()">Reiniciar vista</button>
+
   <div class="stats">
     <p id="puntos">Puntos: 0</p>
     <p id="distancia">Distancia: 0 km</p>
@@ -393,6 +396,7 @@ if (fechaFiltro) {
 });
 marcadoresHistorial.push(marker);
 
+
   
 };
 
@@ -439,14 +443,46 @@ document.getElementById('distancia').innerText = `Distancia: ${distanciaTotal.to
   // Limpiar marcadores verdes del historial
   marcadoresHistorial.forEach(marker => marker.setMap(null));
   marcadoresHistorial = [];
-  
+
 // Volver a centrar en el operador seleccionado
   const numeroEmpleado = document.getElementById("operadorSelect").value;
   if (numeroEmpleado) {
     centrarEnOperador(numeroEmpleado);
   }
 }
+// exportar en archivo 
+function exportarHistorial() {
+  if (coordenadasGlobal.length === 0) return alert("No hay puntos para exportar.");
+  
+  const filas = coordenadasGlobal.map(p =>
+    `${new Date(p.timestamp).toLocaleString()},${p.lat},${p.lng}`
+  );
+  const contenido = "Fecha y hora,Latitud,Longitud\n" + filas.join("\n");
+  const blob = new Blob([contenido], { type: 'text/csv' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = 'historial.csv';
+  link.click();
+}
 
+//regresar a vista previa 
+function reiniciarVista() {
+  map.setZoom(12);
+  map.setCenter({ lat: 19.4326, lng: -99.1332 }); // CDMX o zona general
+}
+
+// ver direccion
+function obtenerDireccion(lat, lng, callback) {
+  const geocoder = new google.maps.Geocoder();
+  const latlng = { lat: lat, lng: lng };
+  geocoder.geocode({ location: latlng }, (results, status) => {
+    if (status === "OK" && results[0]) {
+      callback(results[0].formatted_address);
+    } else {
+      callback("Dirección no disponible");
+    }
+  });
+}
 
 </script>
 
