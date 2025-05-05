@@ -3,108 +3,162 @@
 <head>
   <meta charset="UTF-8">
   <title>Operador - OPL demo</title>
-  <!-- Firebase App -->
+  <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
   <style>
     body {
       margin: 0;
       height: 100vh;
-      background: linear-gradient(135deg, #1F3B73 0%, #2C82C9 100%);
+      display: flex;
+      flex-direction: column;
       font-family: 'Segoe UI', sans-serif;
+    }
+    header {
+      background: linear-gradient(135deg, #1F3B73 0%, #2C82C9 100%);
+      color: white;
+      padding: 10px;
+      text-align: center;
+      font-size: 18px;
+    }
+    #formDestino {
       display: flex;
       justify-content: center;
       align-items: center;
-      color: white;
-      text-align: center;
+      padding: 10px;
+      gap: 10px;
     }
-    .container {
-      background: rgba(255, 255, 255, 0.1);
-      padding: 30px;
-      border-radius: 12px;
-      box-shadow: 0 0 15px rgba(0,0,0,0.3);
+    #destinoInput {
+      width: 300px;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
     }
-    h1 {
-      margin-bottom: 20px;
+    #buscarRutaBtn {
+      padding: 10px 15px;
+      border: none;
+      background: #FFC107;
+      border-radius: 8px;
+      font-weight: bold;
+      cursor: pointer;
     }
-    p {
-      margin-top: 20px;
-      font-size: 18px;
+    #map {
+      flex: 1;
+      width: 100%;
     }
   </style>
 </head>
 <body>
 
-<div class="container">
-  <h1>📍 Operador - Compartiendo ubicación</h1>
-  <p id="status">Obteniendo ubicación...</p>
+<header>BIEVENIDO OPERADOR</header>
+<div id="formDestino">
+  <input type="text" id="destinoInput" placeholder="Escribe tu destino...">
+  <button id="buscarRutaBtn">Buscar mejor ruta</button>
 </div>
+<div id="map"></div>
 
 <script>
-  // Configuración Firebase de tu proyecto
   const firebaseConfig = {
     apiKey: "AIzaSyBgVMJ4tZQ_0vnzobHCniKsM6dgjCyoauc",
     authDomain: "opl-demo-20e5d.firebaseapp.com",
     databaseURL: "https://opl-demo-20e5d-default-rtdb.firebaseio.com",
     projectId: "opl-demo-20e5d",
-    storageBucket: "opl-demo-20e5d.firebasestorage.app",
+    storageBucket: "opl-demo-20e5d.appspot.com",
     messagingSenderId: "1015591087700",
-    appId: "1:1015591087700:web:55e01976e950b8251707c1",
-    measurementId: "G-6ML34RJ5KZ"
+    appId: "1:1015591087700:web:55e01976e950b8251707c1"
   };
-
-  // Inicializar Firebase
   firebase.initializeApp(firebaseConfig);
   const database = firebase.database();
 
-  // Aquí deberías capturar el número de empleado
-  // Para este ejemplo, se usa localStorage (o puedes traerlo desde login si prefieres)
-  const numeroEmpleado = prompt("Ingresa tu número de empleado para iniciar el rastreo:");
-
+  const numeroEmpleado = prompt("Ingresa tu número de empleado para rastrear tu ubicación:");
   if (!numeroEmpleado) {
-    alert('Número de empleado requerido');
-    window.location.href = 'index.html'; // Regresar al inicio si no hay número
+    alert("Número requerido");
+    window.location.href = "index.html";
   }
 
-  function actualizarUbicacion(position) {
-    const lat = position.coords.latitude;
-    const lng = position.coords.longitude;
-    const timestamp = Date.now();
+  let map, operadorMarker, ruta, directionsService, directionsRenderer;
+  let ubicacionActual = null;
 
-    // Actualizar ubicación actual
-    database.ref('ubicaciones/' + numeroEmpleado + '/ubicacion').set({
-      latitud: lat,
-      longitud: lng,
-      timestamp: timestamp
+  function initMap() {
+    map = new google.maps.Map(document.getElementById("map"), {
+      zoom: 14,
+      center: { lat: 19.4326, lng: -99.1332 },
+      mapTypeControl: false
     });
 
-    // Guardar en historial
-    database.ref('historial/' + numeroEmpleado + '/' + timestamp).set({
-      latitud: lat,
-      longitud: lng
-    });
+    directionsService = new google.maps.DirectionsService();
+    directionsRenderer = new google.maps.DirectionsRenderer({ map: map });
 
-    document.getElementById('status').innerText = `Ubicación actualizada ✅\nLat: ${lat}\nLng: ${lng}`;
+    const trafficLayer = new google.maps.TrafficLayer();
+    trafficLayer.setMap(map);
+
+    obtenerUbicacionEnTiempoReal();
   }
 
-  function errorUbicacion(error) {
-    console.error(error);
-    document.getElementById('status').innerText = 'Error obteniendo la ubicación ❌';
-  }
-
-  // Solicitar ubicación cada 15 segundos
-  function iniciarRastreo() {
+  function obtenerUbicacionEnTiempoReal() {
     if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(actualizarUbicacion, errorUbicacion);
-      setInterval(() => {
-        navigator.geolocation.getCurrentPosition(actualizarUbicacion, errorUbicacion);
-      }, 15000); // Cada 15 segundos
+      navigator.geolocation.watchPosition((position) => {
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+        ubicacionActual = new google.maps.LatLng(lat, lng);
+
+        const timestamp = Date.now();
+        database.ref('ubicaciones/' + numeroEmpleado + '/ubicacion').set({
+          latitude: lat,
+          longitude: lng,
+          timestamp
+        });
+
+        database.ref('historial/' + numeroEmpleado + '/' + timestamp).set({
+          ubicacion: { latitude: lat, longitude: lng, timestamp }
+        });
+
+        if (!operadorMarker) {
+          operadorMarker = new google.maps.Marker({
+            position: ubicacionActual,
+            map,
+            icon: "http://maps.google.com/mapfiles/ms/icons/blue-dot.png",
+            title: "Tu ubicación"
+          });
+          map.setCenter(ubicacionActual);
+        } else {
+          operadorMarker.setPosition(ubicacionActual);
+        }
+      }, (error) => {
+        alert("Error obteniendo ubicación: " + error.message);
+      });
     } else {
-      alert('Tu navegador no soporta geolocalización.');
+      alert("Tu navegador no soporta geolocalización.");
     }
   }
 
-  iniciarRastreo();
+  document.getElementById("buscarRutaBtn").addEventListener("click", () => {
+    const destino = document.getElementById("destinoInput").value;
+    if (!destino || !ubicacionActual) return alert("Completa tu destino o espera ubicación...");
+
+    directionsService.route({
+      origin: ubicacionActual,
+      destination: destino,
+      travelMode: google.maps.TravelMode.DRIVING,
+      drivingOptions: {
+        departureTime: new Date(),
+        trafficModel: "bestguess"
+      }
+    }, (result, status) => {
+      if (status === "OK") {
+        directionsRenderer.setDirections(result);
+      } else {
+        alert("No se pudo encontrar una ruta: " + status);
+      }
+    });
+  });
+
+  window.initMap = initMap; // ✅ Solución al error 'initMap is not a function'
+</script>
+
+<!-- ✅ Carga optimizada del mapa -->
+<script async defer
+  src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDhnrrJ9fJ22lWcXO0xEpfq5RIjgABRtis&callback=initMap">
 </script>
 
 </body>
