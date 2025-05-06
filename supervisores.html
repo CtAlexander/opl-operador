@@ -5,6 +5,7 @@
   <title>Supervisores - OPL Demo</title>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDhnrrJ9fJ22lWcXO0xEpfq5RIjgABRtis&callback=initMap" async defer></script>
   <style>
 
   .marca-de-agua {
@@ -201,10 +202,19 @@
       #sidebar.open {
         right: 0;
       }
-    }
+
+}
+    #historialPuntos {
+  max-height: 65vh; /* Altura máxima visible del historial */
+  overflow-y: auto;
+  padding-right: 6px; /* Para que no tape el scroll */
+}
+
   </style>
 </head>
 <body>
+
+
 
 <!-- ✅ Marca de agua -->
 <div class="marca-de-agua">ALFA 4 Innovación</div>
@@ -281,18 +291,21 @@
   }
 
   function cargarOperadores() {
-    const operadorSelect = document.getElementById("operadorSelect");
-    operadorSelect.innerHTML = '<option value="">-- Selecciona un operador --</option>';
-    database.ref("ubicaciones").once("value", snapshot => {
-      snapshot.forEach(childSnapshot => {
-        const numeroEmpleado = childSnapshot.key;
-        const datos = childSnapshot.val();
-        if (datos.puesto && datos.puesto.toUpperCase() === "OPERADOR") {
-          const option = document.createElement("option");
-          option.value = numeroEmpleado;
-          option.text = `${numeroEmpleado} - ${datos.nombre}`;
-          operadorSelect.appendChild(option);
-        }
+  const operadorSelect = document.getElementById("operadorSelect");
+
+  database.ref("ubicaciones").on("value", snapshot => {
+    operadorSelect.innerHTML = '<option value="">-- Selecciona un operador --</option>'; // Limpiar lista
+
+    snapshot.forEach(childSnapshot => {
+      const numeroEmpleado = childSnapshot.key;
+      const datos = childSnapshot.val();
+      if (datos.puesto && datos.puesto.toUpperCase() === "OPERADOR") {
+        const option = document.createElement("option");
+        option.value = numeroEmpleado;
+        option.text = `${numeroEmpleado} - ${datos.nombre}`;
+        operadorSelect.appendChild(option);
+      }
+    
       });
     });
    operadorSelect.addEventListener("change", function() {
@@ -454,14 +467,6 @@ document.getElementById('distancia').innerText = `Distancia: ${distanciaTotal.to
     document.getElementById('sidebar').classList.remove('open');
   }
 
-  function loadGoogleMapsAPI() {
-    const script = document.createElement("script");
-    script.src = "https://maps.googleapis.com/maps/api/js?key=AIzaSyCn59s9KxlvxWIlB5_hm3L4-Tzwu2InbzE&callback=initMap";
-    script.async = true;
-    script.defer = true;
-    document.head.appendChild(script);
-  }
-  window.onload = loadGoogleMapsAPI;
 
  function cerrarSidebar() {
   document.getElementById('sidebar').classList.remove('open');
