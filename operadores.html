@@ -27,6 +27,7 @@
       align-items: center;
       padding: 10px;
       gap: 10px;
+      flex-wrap: wrap;
     }
     #destinoInput {
       width: 300px;
@@ -34,7 +35,7 @@
       border-radius: 8px;
       border: 1px solid #ccc;
     }
-    #buscarRutaBtn {
+    button {
       padding: 10px 15px;
       border: none;
       background: #FFC107;
@@ -46,16 +47,30 @@
       flex: 1;
       width: 100%;
     }
+    #infoRuta {
+      background: #f4f4f4;
+      padding: 12px;
+      text-align: center;
+      font-size: 16px;
+      font-weight: bold;
+      color: #333;
+      border-top: 1px solid #ccc;
+    }
   </style>
 </head>
 <body>
 
-<header>BIENVENIDO OPERADOR</header>
+<header>Bienvenido operador</header>
+
 <div id="formDestino">
   <input type="text" id="destinoInput" placeholder="Escribe tu destino...">
   <button id="buscarRutaBtn">Buscar mejor ruta</button>
+  <button id="vistaAmpliaBtn">Vista amplia</button>
 </div>
+
 <div id="map"></div>
+
+<div id="infoRuta">⌛ Tiempo estimado: - | 📍 Distancia: -</div>
 
 <script>
   const firebaseConfig = {
@@ -76,10 +91,10 @@
     window.location.href = "index.html";
   }
 
-  let map, operadorMarker, ruta, directionsService, directionsRenderer;
+  let map, operadorMarker, directionsService, directionsRenderer;
   let ubicacionActual = null;
 
-  function initMap() {
+  window.initMap = function () {
     map = new google.maps.Map(document.getElementById("map"), {
       zoom: 14,
       center: { lat: 19.4326, lng: -99.1332 },
@@ -93,7 +108,7 @@
     trafficLayer.setMap(map);
 
     obtenerUbicacionEnTiempoReal();
-  }
+  };
 
   function obtenerUbicacionEnTiempoReal() {
     if (navigator.geolocation) {
@@ -147,16 +162,30 @@
     }, (result, status) => {
       if (status === "OK") {
         directionsRenderer.setDirections(result);
+
+        const ruta = result.routes[0].legs[0];
+        const duracion = ruta.duration.text;
+        const distancia = ruta.distance.text;
+
+        // Mostrar visualmente
+        document.getElementById("infoRuta").innerText = `⌛ Tiempo estimado: ${duracion} |  Distancia: ${distancia}`;
+
+        // También mostrar alerta (opcional)
+        alert(`🚗 Ruta encontrada:\n🕒 Tiempo estimado: ${duracion}\n Distancia: ${distancia}`);
       } else {
         alert("No se pudo encontrar una ruta: " + status);
       }
     });
   });
 
-  window.initMap = initMap; // ✅ Solución al error 'initMap is not a function'
+  document.getElementById("vistaAmpliaBtn").addEventListener("click", () => {
+    if (ubicacionActual) {
+      map.setZoom(12);
+      map.setCenter(ubicacionActual);
+    }
+  });
 </script>
 
-<!-- ✅ Carga optimizada del mapa -->
 <script async defer
   src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDhnrrJ9fJ22lWcXO0xEpfq5RIjgABRtis&callback=initMap">
 </script>
