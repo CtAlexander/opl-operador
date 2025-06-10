@@ -48,13 +48,14 @@
       width: 100%;
     }
     #infoRuta {
-      background: #f4f4f4;
-      padding: 12px;
-      text-align: center;
+      background: white;
+      color: #333;
+      padding: 15px;
       font-size: 16px;
       font-weight: bold;
-      color: #333;
-      border-top: 1px solid #ccc;
+      border-top: 2px solid #ccc;
+      box-shadow: 0 -2px 6px rgba(0,0,0,0.1);
+      text-align: center;
     }
   </style>
 </head>
@@ -66,6 +67,7 @@
   <input type="text" id="destinoInput" placeholder="Escribe tu destino...">
   <button id="buscarRutaBtn">Buscar mejor ruta</button>
   <button id="vistaAmpliaBtn">Vista amplia</button>
+  <button id="verRutaAsignadaBtn">Ver mi ruta asignada</button>
 </div>
 
 <div id="map"></div>
@@ -86,10 +88,17 @@
   const database = firebase.database();
 
   const numeroEmpleado = prompt("Ingresa tu número de empleado para rastrear tu ubicación:");
-  if (!numeroEmpleado) {
-    alert("Número requerido");
-    window.location.href = "index.html";
-  }
+if (!numeroEmpleado) {
+  alert("Número requerido");
+  window.location.href = "index.html";
+}
+
+const tipoUnidad = prompt("¿Qué tipo de unidad estás operando? (Ejemplo: auto, camión, moto)").toLowerCase();
+if (!tipoUnidad) {
+  alert("Tipo de unidad requerido para calcular rutas.");
+  window.location.href = "index.html";
+}
+
 
   let map, operadorMarker, directionsService, directionsRenderer;
   let ubicacionActual = null;
@@ -148,14 +157,16 @@
   }
 
   document.getElementById("buscarRutaBtn").addEventListener("click", () => {
+  document.getElementById("verRutaAsignadaBtn").addEventListener("click", mostrarRutaAsignada);
+
     const destino = document.getElementById("destinoInput").value;
     if (!destino || !ubicacionActual) return alert("Completa tu destino o espera ubicación...");
 
     directionsService.route({
       origin: ubicacionActual,
       destination: destino,
-      travelMode: google.maps.TravelMode.DRIVING,
-      drivingOptions: {
+      travelMode: tipoUnidad.includes("moto") ? google.maps.TravelMode.TWO_WHEELER : google.maps.TravelMode.DRIVING,
+       drivingOptions: {
         departureTime: new Date(),
         trafficModel: "bestguess"
       }
@@ -167,11 +178,8 @@
         const duracion = ruta.duration.text;
         const distancia = ruta.distance.text;
 
-        // Mostrar visualmente
-        document.getElementById("infoRuta").innerText = `⌛ Tiempo estimado: ${duracion} |  Distancia: ${distancia}`;
-
-        // También mostrar alerta (opcional)
-        alert(`🚗 Ruta encontrada:\n🕒 Tiempo estimado: ${duracion}\n Distancia: ${distancia}`);
+        document.getElementById("infoRuta").innerText =
+          `⌛ Tiempo estimado: ${duracion} | 📍 Distancia: ${distancia}`;
       } else {
         alert("No se pudo encontrar una ruta: " + status);
       }
@@ -179,11 +187,107 @@
   });
 
   document.getElementById("vistaAmpliaBtn").addEventListener("click", () => {
+  document.getElementById("verRutaAsignadaBtn").addEventListener("click", mostrarRutaAsignada);
+
+
     if (ubicacionActual) {
       map.setZoom(12);
       map.setCenter(ubicacionActual);
     }
   });
+
+  function mostrarRutaAsignada() {
+  database.ref('rutas/' + numeroEmpleado).once('value').then(snapshot => {
+    const puntos = snapshot.val();
+    if (!puntos || puntos.length < 1) {
+      alert("No hay puntos asignados para generar la ruta.");
+      return;
+    }
+
+    if (!ubicacionActual) {
+      alert("Esperando ubicación actual...");
+      return;
+    }
+
+    // ✅ Dibujar marcadores con notas y direcciones
+    puntos.forEach((punto) => {
+      const latLng = new google.maps.LatLng(punto.lat, punto.lng);
+
+      const marker = new google.maps.Marker({
+        position: latLng,
+        map: map,
+        icon: "http://maps.google.com/mapfiles/ms/icons/red-dot.png",
+        title: punto.nota || "Destino asignado"
+      });
+
+      const infoWindow = new google.maps.InfoWindow({
+        content: `<strong>${punto.nota || "Destino asignado"}</strong><br>
+                  📍 Lat: ${typeof punto.lat === "number" ? punto.lat.toFixed(5) : "N/D"},
+                  Lng: ${typeof punto.lng === "number" ? punto.lng.toFixed(5) : "N/D"}
+
+                  ⏳ Buscando dirección...`
+      });
+
+      marker.addListener("mouseover", () => {
+        infoWindow.open(map, marker);
+
+        const geocoder = new google.maps.Geocoder();
+        geocoder.geocode({ location: latLng }, (results, status) => {
+          if (status === "OK" && results[0]) {
+            infoWindow.setContent(`
+              <strong>${punto.nota || "Destino asignado"}</strong><br>
+              📍 Lat: ${typeof punto.lat === "number" ? punto.lat.toFixed(5) : "N/D"},
+              Lng: ${typeof punto.lng === "number" ? punto.lng.toFixed(5) : "N/D"}
+
+              🏠 Dirección: ${results[0].formatted_address}
+            `);
+          } else {
+            infoWindow.setContent(`
+              <strong>${punto.nota || "Destino asignado"}</strong><br>
+              📍 Lat: ${typeof punto.lat === "number" ? punto.lat.toFixed(5) : "N/D"},
+              Lng: ${typeof punto.lng === "number" ? punto.lng.toFixed(5) : "N/D"}
+
+              🏠 Dirección no disponible
+            `);
+          }
+        });
+      });
+    });
+
+    // ✅ Dibujar la ruta desde ubicación actual hasta el primer punto
+    const destino = new google.maps.LatLng(puntos[0].lat, puntos[0].lng);
+
+    directionsService.route({
+      origin: ubicacionActual,
+      destination: destino,
+      travelMode: tipoUnidad.includes("moto") ? google.maps.TravelMode.TWO_WHEELER : google.maps.TravelMode.DRIVING,
+      drivingOptions: {
+        departureTime: new Date(),
+        trafficModel: "bestguess"
+      }
+    }, (result, status) => {
+      if (status === "OK") {
+        directionsRenderer.setMap(null); // Limpiar anteriores
+        directionsRenderer = new google.maps.DirectionsRenderer({
+          map: map,
+          polylineOptions: {
+            strokeColor: "#f60202",
+            strokeWeight: 5
+          }
+        });
+        directionsRenderer.setDirections(result);
+
+        const ruta = result.routes[0].legs[0];
+        document.getElementById("infoRuta").innerText =
+          `📍 Ruta activa. Tiempo estimado: ${ruta.duration.text} | Distancia: ${ruta.distance.text}`;
+      } else {
+        alert("No se pudo generar la ruta: " + status);
+      }
+    });
+  });
+}
+
+
 </script>
 
 <script async defer
