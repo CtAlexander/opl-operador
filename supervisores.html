@@ -5,7 +5,7 @@
   <title>Supervisores - OPL Demo</title>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
-  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDhnrrJ9fJ22lWcXO0xEpfq5RIjgABRtis&callback=initMap" async defer></script>
+  <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDhnrrJ9fJ22lWcXO0xEpfq5RIjgABRtis&callback=initMap&libraries=places"></script>
   <style>
 
   .marca-de-agua {
@@ -226,6 +226,7 @@
   </select>
   <input type="date" id="fechaFiltro">
   <button onclick="mostrarSidebar()">Ver Historial</button>
+  <button onclick="iniciarAñadirRuta()">➕ Añadir ruta</button>
   <button onclick="exportarHistorial()">Exportar</button>
   <button onclick="reiniciarVista()">Reiniciar vista</button>
 
@@ -235,6 +236,7 @@
   </div>
 </div>
 
+<input id="buscador" type="text" placeholder="Buscar ubicación..." style="padding:10px;width:300px;margin:10px;border-radius:8px;border:1px solid #ccc;">
 
 
 <div id="map"></div>
@@ -261,6 +263,9 @@
   const database = firebase.database();
 
   let map;
+  let modoAgregarRuta = false;
+  let rutaTemporal = [];
+  let marcadoresRuta = [];
   let markers = {};
   let polylines = [];
   let coordenadasGlobal = [];
@@ -278,17 +283,155 @@
   return R * c;
 }
 
+function activarBuscador() {
+  const input = document.getElementById("buscador");
+  const searchBox = new google.maps.places.SearchBox(input);
+  map.controls[google.maps.ControlPosition.TOP_LEFT].push(input);
 
+  searchBox.addListener("places_changed", () => {
+    const places = searchBox.getPlaces();
+    if (places.length === 0) return;
 
-
-  function initMap() {
-    map = new google.maps.Map(document.getElementById("map"), {
-      center: { lat: 19.4326, lng: -99.1332 },
-      zoom: 12
+    const bounds = new google.maps.LatLngBounds();
+    places.forEach((place) => {
+      if (!place.geometry || !place.geometry.location) return;
+      map.setCenter(place.geometry.location);
+      map.setZoom(17);
+      bounds.extend(place.geometry.location);
     });
-    cargarOperadores();
-    escucharUbicaciones();
+    map.fitBounds(bounds);
+  });
+}
+
+
+
+  // ✅ Función global que se llama desde el botón
+  function iniciarAñadirRuta() {
+    const operador = document.getElementById("operadorSelect").value;
+    if (!operador) {
+      alert("Selecciona un operador para asignar una ruta.");
+      return;
+    }
+
+    modoAgregarRuta = true;
+    rutaTemporal = [];
+    marcadoresRuta.forEach(m => m.setMap(null)); // Limpia marcadores previos
+    marcadoresRuta = [];
+
+    alert("Haz clic en el mapa para agregar puntos de ruta. Da doble clic cuando termines.");
   }
+
+  // ✅ Función que Google Maps llama al cargarse
+  function initMap() {
+  map = new google.maps.Map(document.getElementById("map"), {
+    center: { lat: 19.4326, lng: -99.1332 },
+    zoom: 12
+  });
+
+  cargarOperadores();
+  escucharUbicaciones();
+
+  // ✅ Evento para clics en el mapa (añadir punto con nota)
+  google.maps.event.addListener(map, 'click', function (event) {
+    if (!modoAgregarRuta) return;
+
+    const operador = document.getElementById("operadorSelect").value;
+    if (!operador) return;
+
+    const latLng = event.latLng;
+    const nota = prompt("Escribe una nota para este punto (opcional):", "");
+
+    const punto = {
+      lat: latLng.lat(),
+      lng: latLng.lng(),
+      nota: nota || ""
+    };
+
+    rutaTemporal.push(punto); // Para mantener en memoria local
+    database.ref(`rutas/${operador}`).set(rutaTemporal); // ✅ Guarda automáticamente en Firebase
+
+    const marker = new google.maps.Marker({
+      position: latLng,
+      map: map,
+      icon: "http://maps.google.com/mapfiles/ms/icons/red-dot.png",
+      title: nota || "Punto de ruta"
+    });
+
+    const infoWindow = new google.maps.InfoWindow({
+  content: "Cargando información..."  // contenido inicial temporal
+});
+
+marker.addListener("mouseover", () => {
+  infoWindow.open(map, marker);
+
+  const geocoder = new google.maps.Geocoder();
+  geocoder.geocode({ location: latLng }, (results, status) => {
+    const direccion = (status === "OK" && results[0])
+      ? results[0].formatted_address
+      : "Dirección no disponible";
+
+    infoWindow.setContent(`
+      <div style="min-width:240px;max-width:280px;font-size:14px;">
+        <strong>📍 Nota:</strong> ${punto.nota || "Sin nota"}<br>
+        <strong>🧭 Coordenadas:</strong> ${punto.lat.toFixed(5)}, ${punto.lng.toFixed(5)}<br>
+        <strong>🏠 Dirección:</strong> ${direccion}
+      </div>
+    `);
+  });
+});
+
+
+    marker.addListener("click", () => {
+      infoWindow.open(map, marker);
+
+      const geocoder = new google.maps.Geocoder();
+      geocoder.geocode({ location: latLng }, (results, status) => {
+        if (status === "OK" && results[0]) {
+          infoWindow.setContent(`
+            <strong>${nota || "Punto de ruta"}</strong><br>
+           📍 Lat: ${typeof punto.lat === "number" ? punto.lat.toFixed(5) : "N/D"},
+           Lng: ${typeof punto.lng === "number" ? punto.lng.toFixed(5) : "N/D"}
+
+            🏠 Dirección: ${results[0].formatted_address}
+          `);
+        } else {
+          infoWindow.setContent(`
+            <strong>${nota || "Punto de ruta"}</strong><br>
+           📍 Lat: ${typeof punto.lat === "number" ? punto.lat.toFixed(5) : "N/D"},
+           Lng: ${typeof punto.lng === "number" ? punto.lng.toFixed(5) : "N/D"}
+
+            🏠 Dirección no disponible
+          `);
+        }
+
+      });
+    });
+
+    marcadoresRuta.push(marker);
+  });
+
+  // ✅ Evento doble clic para guardar la ruta
+  google.maps.event.addListener(map, 'dblclick', function () {
+    if (!modoAgregarRuta || rutaTemporal.length === 0) return;
+
+    const operador = document.getElementById("operadorSelect").value;
+    if (!operador) return;
+
+    database.ref(`rutas/${operador}`).set(rutaTemporal)
+      .then(() => {
+        alert("Ruta asignada exitosamente.");
+        modoAgregarRuta = false;
+        rutaTemporal = [];
+      })
+      .catch(error => {
+        alert("Error al guardar la ruta: " + error.message);
+      });
+  });
+
+  // ✅ Activar el buscador
+  activarBuscador();
+}
+
 
   function cargarOperadores() {
   const operadorSelect = document.getElementById("operadorSelect");
@@ -514,6 +657,7 @@ function obtenerDireccion(lat, lng, callback) {
     }
   });
 }
+
 
 </script>
 
