@@ -5,6 +5,8 @@
   <title>Supervisores - OPL Demo</title>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.7.4/lottie.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.7.4/lottie.min.js"></script>
   <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDhnrrJ9fJ22lWcXO0xEpfq5RIjgABRtis&callback=initMap&libraries=places"></script>
   <style>
 
@@ -202,6 +204,9 @@
       #sidebar.open {
         right: 0;
       }
+#detalleTramo {
+  color: black;
+}
 
 }
     #historialPuntos {
@@ -229,6 +234,8 @@
   <button onclick="iniciarAñadirRuta()">➕ Añadir ruta</button>
   <button onclick="exportarHistorial()">Exportar</button>
   <button onclick="reiniciarVista()">Reiniciar vista</button>
+  <button onclick="alternarHistorialInferior()">📂 Historial abajo</button>
+
 
   <div class="stats">
     <p id="puntos">Puntos: 0</p>
@@ -239,7 +246,26 @@
 <input id="buscador" type="text" placeholder="Buscar ubicación..." style="padding:10px;width:300px;margin:10px;border-radius:8px;border:1px solid #ccc;">
 
 
+
 <div id="map"></div>
+
+
+<div style="background: #24335f; color: white; padding: 15px; text-align: center;">
+  <h3 style="margin: 0; color: var(--amarillo);">📍 Historial reciente</h3>
+  <div id="historialInferior" style="font-size: 14px; max-height: 150px; overflow-y: auto;">
+    <p>No hay datos disponibles.</p>
+  </div>
+</div>
+
+
+<div id="detalleTramo" style="padding: 15px; background: #24335f; font-weight: bold; text-align: center;">
+  ⏱️ Tiempo estimado: - | 🛣️ Distancia del último tramo: -
+</div>
+
+<div id="resumenRuta" style="padding: 15px; background: #24335f; font-weight: bold; text-align: center; color: #000;">
+  🧾 Tiempo total estimado: - | 📏 Distancia total: -
+</div>
+
 
 <div id="sidebar">
   <button id="closeSidebar" onclick="cerrarSidebar()">Cerrar</button>
@@ -262,6 +288,8 @@
   firebase.initializeApp(firebaseConfig);
   const database = firebase.database();
 
+  let directionsService;
+  let directionsRenderer;
   let map;
   let modoAgregarRuta = false;
   let rutaTemporal = [];
@@ -286,7 +314,7 @@
 function activarBuscador() {
   const input = document.getElementById("buscador");
   const searchBox = new google.maps.places.SearchBox(input);
-  map.controls[google.maps.ControlPosition.TOP_LEFT].push(input);
+  
 
   searchBox.addListener("places_changed", () => {
     const places = searchBox.getPlaces();
@@ -330,6 +358,10 @@ function activarBuscador() {
 
   cargarOperadores();
   escucharUbicaciones();
+  directionsService = new google.maps.DirectionsService();
+ directionsRenderer = new google.maps.DirectionsRenderer({ suppressMarkers: true });
+directionsRenderer.setMap(map);
+
 
   // ✅ Evento para clics en el mapa (añadir punto con nota)
   google.maps.event.addListener(map, 'click', function (event) {
@@ -340,6 +372,8 @@ function activarBuscador() {
 
     const latLng = event.latLng;
     const nota = prompt("Escribe una nota para este punto (opcional):", "");
+if (nota === null) return; // ⛔ Si se presiona Cancelar, no continúa
+
 
     const punto = {
       lat: latLng.lat(),
@@ -350,19 +384,60 @@ function activarBuscador() {
     rutaTemporal.push(punto); // Para mantener en memoria local
     database.ref(`rutas/${operador}`).set(rutaTemporal); // ✅ Guarda automáticamente en Firebase
 
-    const marker = new google.maps.Marker({
-      position: latLng,
-      map: map,
-      icon: "http://maps.google.com/mapfiles/ms/icons/red-dot.png",
-      title: nota || "Punto de ruta"
-    });
+    // Crear contenedor animado
+    const animDiv = document.createElement("div");
+animDiv.style.width = "40px";
+animDiv.style.height = "40px";
+
+const anim = lottie.loadAnimation({
+  container: animDiv,
+  renderer: "svg",
+  loop: true,
+  autoplay: true,
+  path: "avatar.json" // ✅ animación en la misma carpeta
+});
+
+const customMarker = new google.maps.OverlayView();
+customMarker.onAdd = function () {
+  const panes = this.getPanes();
+  panes.overlayMouseTarget.appendChild(animDiv);
+};
+customMarker.draw = function () {
+  const projection = this.getProjection();
+  const position = projection.fromLatLngToDivPixel(latLng);
+  if (position) {
+    animDiv.style.left = position.x + "px";
+    animDiv.style.top = position.y + "px";
+    animDiv.style.position = "absolute";
+    animDiv.style.transform = "translate(-50%, -50%)";
+    animDiv.style.zIndex = "9999";
+  }
+};
+customMarker.onRemove = function () {
+  if (animDiv.parentNode) animDiv.parentNode.removeChild(animDiv);
+};
+customMarker.setMap(map);
+
+// Guardar marcador para futuras actualizaciones
+markers[numeroEmpleado] = {
+  setPosition: (newLatLng) => {
+    latLng = newLatLng;
+    customMarker.draw(); // redibujar
+  },
+  remove: () => {
+    customMarker.setMap(null);
+  }
+};
+
 
     const infoWindow = new google.maps.InfoWindow({
   content: "Cargando información..."  // contenido inicial temporal
 });
 
-marker.addListener("mouseover", () => {
-  infoWindow.open(map, marker);
+animDiv.addEventListener("mouseover", () => {
+  infoWindow.open(map);
+
+
 
   const geocoder = new google.maps.Geocoder();
   geocoder.geocode({ location: latLng }, (results, status) => {
@@ -380,9 +455,57 @@ marker.addListener("mouseover", () => {
   });
 });
 
+// Calcular tiempo y distancia entre tramos
+let totalTiempo = 0;
+let totalDistancia = 0;
 
-    marker.addListener("click", () => {
-      infoWindow.open(map, marker);
+const calcularTramos = async () => {
+  for (let i = 0; i < puntos.length - 1; i++) {
+    const origen = new google.maps.LatLng(puntos[i].lat, puntos[i].lng);
+    const destino = new google.maps.LatLng(puntos[i + 1].lat, puntos[i + 1].lng);
+
+    await new Promise((resolve) => {
+      directionsService.route({
+        origin: origen,
+        destination: destino,
+        travelMode: tipoUnidad.includes("moto") ? google.maps.TravelMode.TWO_WHEELER : google.maps.TravelMode.DRIVING,
+        drivingOptions: {
+          departureTime: new Date(),
+          trafficModel: "bestguess"
+        }
+      }, (result, status) => {
+        if (status === "OK") {
+          const tramo = result.routes[0].legs[0];
+          const tiempoTexto = tramo.duration.text;
+          const distanciaTexto = tramo.distance.text;
+
+          document.getElementById("detalleTramo").innerText =
+            `⏱️ Tiempo tramo ${i + 1}: ${tiempoTexto} | 🛣️ Distancia: ${distanciaTexto}`;
+
+          const minutos = tramo.duration.value / 60;
+          const kilometros = tramo.distance.value / 1000;
+
+          totalTiempo += minutos;
+          totalDistancia += kilometros;
+
+          resolve();
+        } else {
+          console.warn("Error al calcular tramo:", status);
+          resolve();
+        }
+      });
+    });
+  }
+
+  document.getElementById("resumenRuta").innerText =
+    `🧾 Tiempo total estimado: ${Math.round(totalTiempo)} minutos | 📏 Distancia total: ${totalDistancia.toFixed(2)} km`;
+};
+
+// Ejecutar cálculo
+calcularTramos();
+
+animDiv.addEventListener("click", () => {
+  infoWindow.open(map);
 
       const geocoder = new google.maps.Geocoder();
       geocoder.geocode({ location: latLng }, (results, status) => {
@@ -412,24 +535,51 @@ marker.addListener("mouseover", () => {
 
   // ✅ Evento doble clic para guardar la ruta
   google.maps.event.addListener(map, 'dblclick', function () {
-    if (!modoAgregarRuta || rutaTemporal.length === 0) return;
+  if (!modoAgregarRuta || rutaTemporal.length === 0) return;
 
-    const operador = document.getElementById("operadorSelect").value;
-    if (!operador) return;
+  const operador = document.getElementById("operadorSelect").value;
+  if (!operador) return;
 
-    database.ref(`rutas/${operador}`).set(rutaTemporal)
-      .then(() => {
-        alert("Ruta asignada exitosamente.");
-        modoAgregarRuta = false;
-        rutaTemporal = [];
-      })
-      .catch(error => {
-        alert("Error al guardar la ruta: " + error.message);
+  database.ref(`rutas/${operador}`).set(rutaTemporal)
+    .then(() => {
+      alert("Ruta asignada exitosamente.");
+      modoAgregarRuta = false;
+
+      // Calcular distancia y tiempo desde ubicación actual del operador hasta el primer punto
+      database.ref(`ubicaciones/${operador}/ubicacion`).once("value", snap => {
+        const ubicacion = snap.val();
+        if (!ubicacion) return;
+
+        const origen = new google.maps.LatLng(ubicacion.latitude, ubicacion.longitude);
+        const destino = new google.maps.LatLng(rutaTemporal[0].lat, rutaTemporal[0].lng);
+
+        directionsService.route({
+          origin: origen,
+          destination: destino,
+          travelMode: google.maps.TravelMode.DRIVING,
+          drivingOptions: {
+            departureTime: new Date(),
+            trafficModel: "bestguess"
+          }
+        }, (result, status) => {
+          if (status === "OK") {
+            const tramo = result.routes[0].legs[0];
+            const tiempo = tramo.duration.text;
+            const distancia = tramo.distance.text;
+
+            document.getElementById("detalleTramo").innerText =
+              `🕓 Estimado hasta el destino: ${tiempo} | 🛣️ Distancia: ${distancia}`;
+          } else {
+            document.getElementById("detalleTramo").innerText = "No se pudo calcular el tiempo estimado.";
+          }
+        });
       });
-  });
-
-  // ✅ Activar el buscador
-  activarBuscador();
+    })
+    .catch(error => {
+      alert("Error al guardar la ruta: " + error.message);
+    });
+});
+activarBuscador();
 }
 
 
@@ -451,73 +601,201 @@ marker.addListener("mouseover", () => {
     
       });
     });
-   operadorSelect.addEventListener("change", function() {
+    operadorSelect.addEventListener("change", function() {
   // Limpiar todas las polilíneas actuales del mapa
   Object.values(recorridos).forEach(r => {
     r.polyline.setMap(null);
   });
-  recorridos = {}; // Reiniciar el objeto de recorridos
+  recorridos = {};
 
-  // También puedes borrar los marcadores verdes del historial si quieres
+  // Limpiar marcadores verdes del historial si existieran
   marcadoresHistorial.forEach(marker => marker.setMap(null));
   marcadoresHistorial = [];
 
+  // ✅ Centrar en el operador seleccionado
   const numeroEmpleado = this.value;
   if (numeroEmpleado) centrarEnOperador(numeroEmpleado);
 });
 
+
   }
 
   function escucharUbicaciones() {
-    database.ref("ubicaciones").on("value", snapshot => {
-      snapshot.forEach(childSnapshot => {
-        const numeroEmpleado = childSnapshot.key;
-        const datos = childSnapshot.val();
-        if (datos.ubicacion && isFinite(datos.ubicacion.latitude) && isFinite(datos.ubicacion.longitude)) {
-          const latLng = new google.maps.LatLng(datos.ubicacion.latitude, datos.ubicacion.longitude);
-          if (markers[numeroEmpleado]) {
-            markers[numeroEmpleado].setPosition(latLng);
-          } else {
-            const marker = new google.maps.Marker({
-              position: latLng,
-              map: map,
-              title: `Operador ${numeroEmpleado}`,
-              icon: "http://maps.google.com/mapfiles/ms/icons/blue-dot.png"
-            });
-            markers[numeroEmpleado] = marker;
-          }
-          // Agregar al historial de ruta y dibujar línea
-if (!recorridos[numeroEmpleado]) {
-  recorridos[numeroEmpleado] = {
-    coordenadas: [],
-    polyline: new google.maps.Polyline({
-      path: [],
-      geodesic: true,
-      strokeColor: "#00FF00",
-      strokeOpacity: 1.0,
-      strokeWeight: 3,
-      map: map
-    })
-  };
+  // Nuevos operadores
+  database.ref("ubicaciones").on("child_added", snapshot => {
+    const numeroEmpleado = snapshot.key;
+    const datos = snapshot.val();
+    const ubicacion = datos.ubicacion;
+
+    if (ubicacion && isFinite(ubicacion.latitude) && isFinite(ubicacion.longitude)) {
+      let latLng = new google.maps.LatLng(ubicacion.latitude, ubicacion.longitude);
+      const animDiv = document.createElement("div");
+animDiv.style.width = "40px";
+animDiv.style.height = "40px";
+
+const anim = lottie.loadAnimation({
+  container: animDiv,
+  renderer: "svg",
+  loop: true,
+  autoplay: true,
+  path: "avatar.json"  // asegúrate que este archivo esté en la misma carpeta
+});
+
+const customMarker = new google.maps.OverlayView();
+customMarker.onAdd = function () {
+  const panes = this.getPanes();
+  panes.overlayMouseTarget.appendChild(animDiv);
+};
+customMarker.draw = function () {
+  const projection = this.getProjection();
+  const position = projection.fromLatLngToDivPixel(latLng);
+  if (position) {
+    animDiv.style.left = position.x + "px";
+    animDiv.style.top = position.y + "px";
+    animDiv.style.position = "absolute";
+    animDiv.style.transform = "translate(-50%, -50%)";
+    animDiv.style.zIndex = "9999";
+  }
+};
+customMarker.onRemove = function () {
+  if (animDiv.parentNode) animDiv.parentNode.removeChild(animDiv);
+};
+customMarker.setMap(map);
+
+// Guardar en el objeto global
+markers[numeroEmpleado] = {
+  setPosition: (newLatLng) => {
+    latLng = newLatLng;
+    customMarker.draw();
+  },
+  remove: () => {
+    customMarker.setMap(null);
+  }
+};
+
+      recorridos[numeroEmpleado] = {
+        coordenadas: [latLng],
+        polyline: new google.maps.Polyline({
+          path: [latLng],
+          geodesic: true,
+          strokeColor: "#00FF00",
+          strokeOpacity: 1.0,
+          strokeWeight: 3,
+          map: map
+        })
+      };
+    }
+  });
+
+  // Actualizaciones en tiempo real
+  database.ref("ubicaciones").on("child_changed", snapshot => {
+    const numeroEmpleado = snapshot.key;
+    const datos = snapshot.val();
+    const ubicacion = datos.ubicacion;
+
+    if (ubicacion && isFinite(ubicacion.latitude) && isFinite(ubicacion.longitude)) {
+      let latLng = new google.maps.LatLng(ubicacion.latitude, ubicacion.longitude);
+
+      if (markers[numeroEmpleado]) {
+        markers[numeroEmpleado].setPosition(latLng);
+      }
+
+      if (
+  ubicacion &&
+  typeof ubicacion.latitude === "number" &&
+  typeof ubicacion.longitude === "number" &&
+  isFinite(ubicacion.latitude) &&
+  isFinite(ubicacion.longitude)
+) {
+  // sigue con el procesamiento normal...
 }
 
-recorridos[numeroEmpleado].coordenadas.push(latLng);
-recorridos[numeroEmpleado].polyline.setPath(recorridos[numeroEmpleado].coordenadas);
-
-        }
-      });
-    });
-  }
-
-  function centrarEnOperador(numeroEmpleado) {
-    database.ref(`ubicaciones/${numeroEmpleado}/ubicacion`).once("value", snapshot => {
-      const ubicacion = snapshot.val();
-      if (ubicacion && isFinite(ubicacion.latitude) && isFinite(ubicacion.longitude)) {
-        map.setCenter(new google.maps.LatLng(ubicacion.latitude, ubicacion.longitude));
-        map.setZoom(17);
+      if (!recorridos[numeroEmpleado]) {
+        recorridos[numeroEmpleado] = {
+          coordenadas: [],
+          polyline: new google.maps.Polyline({
+            path: [],
+            geodesic: true,
+            strokeColor: "#00FF00",
+            strokeOpacity: 1.0,
+            strokeWeight: 3,
+            map: map
+          })
+        };
       }
-    });
+
+      recorridos[numeroEmpleado].coordenadas.push(latLng);
+      recorridos[numeroEmpleado].polyline.setPath(recorridos[numeroEmpleado].coordenadas);
+    }
+  });
+}
+
+
+function centrarEnOperador(numeroEmpleado) {
+  database.ref(`ubicaciones/${numeroEmpleado}/ubicacion`).once("value", snapshot => {
+    const ubicacion = snapshot.val();
+    if (ubicacion && isFinite(ubicacion.latitude) && isFinite(ubicacion.longitude)) {
+      let latLng = new google.maps.LatLng(ubicacion.latitude, ubicacion.longitude);
+
+      
+      // Centrar y hacer zoom
+      map.setCenter(latLng);
+      map.setZoom(17);
+
+      // Si ya existe el marcador, solo lo reposiciona
+      if (markers[numeroEmpleado]) {
+        markers[numeroEmpleado].setPosition(latLng);
+      } else {
+        // Crear nuevo marcador si no existe
+        const animDiv = document.createElement("div");
+animDiv.style.width = "40px";
+animDiv.style.height = "40px";
+
+const anim = lottie.loadAnimation({
+  container: animDiv,
+  renderer: "svg",
+  loop: true,
+  autoplay: true,
+  path: "avatar.json"  // asegúrate que este archivo esté en la misma carpeta
+});
+
+const customMarker = new google.maps.OverlayView();
+customMarker.onAdd = function () {
+  const panes = this.getPanes();
+  panes.overlayMouseTarget.appendChild(animDiv);
+};
+customMarker.draw = function () {
+  const projection = this.getProjection();
+  const position = projection.fromLatLngToDivPixel(latLng);
+  if (position) {
+    animDiv.style.left = position.x + "px";
+    animDiv.style.top = position.y + "px";
+    animDiv.style.position = "absolute";
+    animDiv.style.transform = "translate(-50%, -50%)";
+    animDiv.style.zIndex = "9999";
   }
+};
+customMarker.onRemove = function () {
+  if (animDiv.parentNode) animDiv.parentNode.removeChild(animDiv);
+};
+customMarker.setMap(map);
+
+// Guardar en el objeto global
+markers[numeroEmpleado] = {
+  setPosition: (newLatLng) => {
+    latLng = newLatLng;
+    customMarker.draw();
+  },
+  remove: () => {
+    customMarker.setMap(null);
+  }
+};
+      }
+
+      
+    }
+  });
+}
 
   function mostrarSidebar() {
     const numeroEmpleado = document.getElementById("operadorSelect").value;
@@ -526,10 +804,15 @@ recorridos[numeroEmpleado].polyline.setPath(recorridos[numeroEmpleado].coordenad
       return;
     }
 
-   let fechaFiltro = document.getElementById("fechaFiltro").value;
+    let fechaFiltro = document.getElementById("fechaFiltro").value;
 if (fechaFiltro) {
-  const fechaObj = new Date(fechaFiltro);
-  fechaFiltro = fechaObj.toISOString().split('T')[0]; // Asegura formato YYYY-MM-DD
+  const fechaObj = new Date(fechaFiltro + "T00:00:00"); // Forzar medianoche
+  fechaFiltro = fechaObj.toLocaleString("es-MX", {
+    timeZone: "America/Mexico_City",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).split("/").reverse().join("-");
 }
 
 
@@ -544,7 +827,15 @@ if (fechaFiltro) {
         const punto = childSnapshot.val();
         const ubicacion = punto.ubicacion || {};
         if (isFinite(ubicacion.latitude) && isFinite(ubicacion.longitude)) {
-          const fechaPunto = new Date(ubicacion.timestamp).toISOString().split('T')[0];
+          const fechaPunto = new Date(ubicacion.timestamp).toLocaleString("es-MX", {
+  timeZone: "America/Mexico_City",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit"
+}).split("/").reverse().join("-");
+
+
+
           if (!fechaFiltro || fechaPunto === fechaFiltro) {
             coordenadasGlobal.push({
               lat: ubicacion.latitude,
@@ -557,7 +848,16 @@ if (fechaFiltro) {
 
       // Mostrar puntos en la barra lateral
       coordenadasGlobal.forEach(punto => {
-        const fechaHora = new Date(punto.timestamp).toLocaleString();
+        const fechaHora = new Date(punto.timestamp).toLocaleString("es-MX", {
+  timeZone: "America/Mexico_City",
+  hour12: false,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit"
+});
         const div = document.createElement("div");
         div.className = "point-item";
         div.innerHTML = `<span class="icono-ubicacion">📌</span><strong>${fechaHora}</strong><br>Lat: ${punto.lat.toFixed(5)}, Lng: ${punto.lng.toFixed(5)}`;
@@ -594,25 +894,59 @@ for (let i = 1; i < coordenadasGlobal.length; i++) {
   const p2 = coordenadasGlobal[i];
   distanciaTotal += calcularDistanciaKm(p1.lat, p1.lng, p2.lat, p2.lng);
 }
-document.getElementById('distancia').innerText = `Distancia: ${distanciaTotal.toFixed(2)} km`;
 
-      if (coordenadasGlobal.length === 0) {
+
+// Dibujar una línea verde entre los puntos del historial
+if (coordenadasGlobal.length >= 2) {
+  const historialPolyline = new google.maps.Polyline({
+    path: coordenadasGlobal.map(p => ({ lat: p.lat, lng: p.lng })),
+    geodesic: true,
+    strokeColor: "#00FF00",
+    strokeOpacity: 1.0,
+    strokeWeight: 3,
+    map: map
+  });
+
+  // Guardar para eliminar si se cierra el sidebar
+  polylines.push(historialPolyline);
+}
+
+
+
+// Siempre actualiza también el historial inferior
+llenarHistorialInferior();
+
+if (coordenadasGlobal.length === 0) {
   const msg = document.createElement("div");
   msg.className = "point-item";
   msg.innerHTML = "📅 No se encontraron registros para esta fecha.";
   historialDiv.appendChild(msg);
+
+
+
  }
     });
   }
-
+  
+  
 
   function cerrarSidebar() {
-    document.getElementById('sidebar').classList.remove('open');
-  }
-
-
- function cerrarSidebar() {
   document.getElementById('sidebar').classList.remove('open');
+
+  // Limpiar marcadores verdes del historial
+  marcadoresHistorial.forEach(marker => marker.setMap(null));
+  marcadoresHistorial = [];
+
+  // Eliminar la línea verde dibujada
+  polylines.forEach(p => p.setMap(null));
+  polylines = [];
+
+  // Volver a centrar en el operador seleccionado
+  const numeroEmpleado = document.getElementById("operadorSelect").value;
+  if (numeroEmpleado) {
+    centrarEnOperador(numeroEmpleado);
+  }
+}
 
   // Limpiar marcadores verdes del historial
   marcadoresHistorial.forEach(marker => marker.setMap(null));
@@ -622,15 +956,161 @@ document.getElementById('distancia').innerText = `Distancia: ${distanciaTotal.to
   const numeroEmpleado = document.getElementById("operadorSelect").value;
   if (numeroEmpleado) {
     centrarEnOperador(numeroEmpleado);
+
+    document.getElementById('distancia').innerText = `Distancia: ${distanciaTotal.toFixed(2)} km`;
   }
+
+  
+
+  function llenarHistorialInferior() {
+  const contenedorInferior = document.getElementById("historialInferior");
+  contenedorInferior.innerHTML = "";
+
+  const numeroEmpleado = document.getElementById("operadorSelect").value;
+  if (!numeroEmpleado) {
+    contenedorInferior.innerHTML = "<p>📍 Selecciona un operador primero.</p>";
+    return;
+  }
+
+  let fechaFiltro = document.getElementById("fechaFiltro").value;
+  if (fechaFiltro) {
+    const fechaObj = new Date(fechaFiltro + "T00:00:00");
+    fechaFiltro = fechaObj.toLocaleString("es-MX", {
+      timeZone: "America/Mexico_City",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit"
+    }).split("/").reverse().join("-");
+  }
+
+  coordenadasGlobal = [];
+
+  // Limpiar marcadores anteriores
+  marcadoresHistorial.forEach(m => m.setMap(null));
+  marcadoresHistorial = [];
+
+  // Limpiar líneas anteriores
+  polylines.forEach(p => p.setMap(null));
+  polylines = [];
+
+  database.ref(`historial/${numeroEmpleado}`).once("value", snapshot => {
+    if (!snapshot.exists()) {
+      contenedorInferior.innerHTML = "<p>📍 No hay datos disponibles.</p>";
+      return;
+    }
+
+    snapshot.forEach(childSnapshot => {
+      const punto = childSnapshot.val();
+      const ubicacion = punto.ubicacion || {};
+      if (isFinite(ubicacion.latitude) && isFinite(ubicacion.longitude)) {
+        const fechaPunto = new Date(ubicacion.timestamp).toLocaleString("es-MX", {
+          timeZone: "America/Mexico_City",
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit"
+        }).split("/").reverse().join("-");
+
+        if (!fechaFiltro || fechaPunto === fechaFiltro) {
+          coordenadasGlobal.push({
+            lat: ubicacion.latitude,
+            lng: ubicacion.longitude,
+            timestamp: ubicacion.timestamp
+          });
+        }
+      }
+    });
+
+    if (coordenadasGlobal.length === 0) {
+      contenedorInferior.innerHTML = "<p>📍 No hay registros para esta fecha.</p>";
+      return;
+    }
+
+    coordenadasGlobal.slice().reverse().forEach(punto => {
+      const fechaHora = new Date(punto.timestamp).toLocaleString("es-MX", {
+        timeZone: "America/Mexico_City",
+        hour12: false,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit"
+      });
+
+      const div = document.createElement("div");
+      div.className = "point-item";
+      div.style.background = "#152344";
+      div.style.marginBottom = "10px";
+      div.style.textAlign = "left";
+      div.style.fontSize = "13px";
+      div.innerHTML = `<span class="icono-ubicacion">📌</span><strong>${fechaHora}</strong><br>Lat: ${punto.lat.toFixed(5)}, Lng: ${punto.lng.toFixed(5)}`;
+
+      obtenerDireccion(punto.lat, punto.lng, (direccion) => {
+        div.innerHTML += `<br><small>${direccion}</small>`;
+      });
+
+      contenedorInferior.appendChild(div);
+
+      // 🔵 Agregar marcador verde en el mapa
+      const latLng = new google.maps.LatLng(punto.lat, punto.lng);
+      const marker = new google.maps.Marker({
+        position: latLng,
+        map: map,
+        icon: "http://maps.google.com/mapfiles/ms/icons/green-dot.png",
+        title: "Punto histórico"
+      });
+      marcadoresHistorial.push(marker);
+    });
+
+    // ➕ Dibujar línea verde entre los puntos del historial inferior
+    if (coordenadasGlobal.length >= 2) {
+      const polyline = new google.maps.Polyline({
+        path: coordenadasGlobal.map(p => ({ lat: p.lat, lng: p.lng })),
+        geodesic: true,
+        strokeColor: "#00FF00",
+        strokeOpacity: 1.0,
+        strokeWeight: 3,
+        map: map
+      });
+      polylines.push(polyline);
+    }
+
+    // 🧮 Actualizar total distancia
+    let distanciaTotal = 0;
+    for (let i = 1; i < coordenadasGlobal.length; i++) {
+      const p1 = coordenadasGlobal[i - 1];
+      const p2 = coordenadasGlobal[i];
+      distanciaTotal += calcularDistanciaKm(p1.lat, p1.lng, p2.lat, p2.lng);
+    }
+    document.getElementById("distancia").innerText = `Distancia: ${distanciaTotal.toFixed(2)} km`;
+    document.getElementById("puntos").innerText = `Puntos: ${coordenadasGlobal.length}`;
+  });
 }
+
+
+
+
 // exportar en archivo 
 function exportarHistorial() {
-  if (coordenadasGlobal.length === 0) return alert("No hay puntos para exportar.");
-  
-  const filas = coordenadasGlobal.map(p =>
-    `${new Date(p.timestamp).toLocaleString()},${p.lat},${p.lng}`
-  );
+  if (coordenadasGlobal.length === 0) {
+    alert("No hay puntos para exportar.");
+    return;
+  }
+
+  const filas = coordenadasGlobal.map(p => {
+    const fechaHora = new Date(p.timestamp).toLocaleString("es-MX", {
+      timeZone: "America/Mexico_City",
+      hour12: false,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit"
+    });
+    return `${fechaHora},${p.lat},${p.lng}`;
+  });
+
   const contenido = "Fecha y hora,Latitud,Longitud\n" + filas.join("\n");
   const blob = new Blob([contenido], { type: 'text/csv' });
   const link = document.createElement('a');
@@ -657,6 +1137,18 @@ function obtenerDireccion(lat, lng, callback) {
     }
   });
 }
+
+
+function alternarHistorialInferior() {
+  const div = document.getElementById("historialInferior");
+  if (div.style.display === "none") {
+    llenarHistorialInferior();
+    div.style.display = "block";
+  } else {
+    div.style.display = "none";
+  }
+}
+
 
 
 </script>
