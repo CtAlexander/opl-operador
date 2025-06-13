@@ -298,6 +298,20 @@
   let polylines = [];
   let coordenadasGlobal = [];
   let recorridos = {}; // Guardará las polilíneas por operador
+  
+  function formatearFechaHoraMX(timestamp) {
+  return new Intl.DateTimeFormat("es-MX", {
+    timeZone: "America/Mexico_City",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false
+  }).format(new Date(timestamp));
+}
+
   let marcadoresHistorial = [];
   function calcularDistanciaKm(lat1, lon1, lat2, lon2) {
   const R = 6371; // Radio de la Tierra en km
@@ -397,11 +411,29 @@ const anim = lottie.loadAnimation({
   path: "avatar.json" // ✅ animación en la misma carpeta
 });
 
+// 🏷️ Crear etiqueta con nombre
+// 🏷️ Crear etiqueta con nombre del operador
+const labelDiv = document.createElement("div");
+labelDiv.innerText = `${numeroEmpleado} - ${datos.nombre}`;
+labelDiv.style.position = "absolute";
+labelDiv.style.background = "rgba(0,0,0,0.6)";
+labelDiv.style.color = "white";
+labelDiv.style.fontSize = "13px";
+labelDiv.style.fontWeight = "bold";
+labelDiv.style.padding = "4px 8px";
+labelDiv.style.borderRadius = "6px";
+labelDiv.style.whiteSpace = "nowrap";
+labelDiv.style.transform = "translate(-50%, -130%)";
+labelDiv.style.zIndex = "9999";
+
+
 const customMarker = new google.maps.OverlayView();
 customMarker.onAdd = function () {
   const panes = this.getPanes();
   panes.overlayMouseTarget.appendChild(animDiv);
+  panes.overlayMouseTarget.appendChild(labelDiv);
 };
+
 customMarker.draw = function () {
   const projection = this.getProjection();
   const position = projection.fromLatLngToDivPixel(latLng);
@@ -410,9 +442,15 @@ customMarker.draw = function () {
     animDiv.style.top = position.y + "px";
     animDiv.style.position = "absolute";
     animDiv.style.transform = "translate(-50%, -50%)";
-    animDiv.style.zIndex = "9999";
+
+    labelDiv.style.left = position.x + "px";
+    labelDiv.style.top = position.y + "px";
+    labelDiv.style.position = "absolute";
+    labelDiv.style.transform = "translate(-50%, -130%)";
   }
 };
+
+
 customMarker.onRemove = function () {
   if (animDiv.parentNode) animDiv.parentNode.removeChild(animDiv);
 };
@@ -630,8 +668,8 @@ activarBuscador();
     if (ubicacion && isFinite(ubicacion.latitude) && isFinite(ubicacion.longitude)) {
       let latLng = new google.maps.LatLng(ubicacion.latitude, ubicacion.longitude);
       const animDiv = document.createElement("div");
-animDiv.style.width = "40px";
-animDiv.style.height = "40px";
+animDiv.style.width = "70px";
+animDiv.style.height = "70px";
 
 const anim = lottie.loadAnimation({
   container: animDiv,
@@ -641,12 +679,28 @@ const anim = lottie.loadAnimation({
   path: "https://ctalexander.github.io/opl-operador/avatar.json"
   // asegúrate que este archivo esté en la misma carpeta
 });
+// 🏷️ Crear etiqueta con nombre del operador
+const labelDiv = document.createElement("div");
+labelDiv.innerText = `${numeroEmpleado} - ${datos.nombre}`;
+labelDiv.style.position = "absolute";
+labelDiv.style.background = "rgba(0,0,0,0.6)";
+labelDiv.style.color = "white";
+labelDiv.style.fontSize = "13px";
+labelDiv.style.fontWeight = "bold";
+labelDiv.style.padding = "4px 8px";
+labelDiv.style.borderRadius = "6px";
+labelDiv.style.whiteSpace = "nowrap";
+labelDiv.style.transform = "translate(-50%, -130%)";
+labelDiv.style.zIndex = "9999";
 
 const customMarker = new google.maps.OverlayView();
 customMarker.onAdd = function () {
   const panes = this.getPanes();
   panes.overlayMouseTarget.appendChild(animDiv);
+  panes.overlayMouseTarget.appendChild(labelDiv);
 };
+
+
 customMarker.draw = function () {
   const projection = this.getProjection();
   const position = projection.fromLatLngToDivPixel(latLng);
@@ -655,12 +709,19 @@ customMarker.draw = function () {
     animDiv.style.top = position.y + "px";
     animDiv.style.position = "absolute";
     animDiv.style.transform = "translate(-50%, -50%)";
-    animDiv.style.zIndex = "9999";
+
+    labelDiv.style.left = position.x + "px";
+    labelDiv.style.top = position.y + "px";
+    labelDiv.style.position = "absolute";
+    labelDiv.style.transform = "translate(-50%, -130%)";
   }
 };
+
 customMarker.onRemove = function () {
   if (animDiv.parentNode) animDiv.parentNode.removeChild(animDiv);
+  if (labelDiv.parentNode) labelDiv.parentNode.removeChild(labelDiv);
 };
+
 customMarker.setMap(map);
 
 // Guardar en el objeto global
@@ -697,9 +758,15 @@ markers[numeroEmpleado] = {
     if (ubicacion && isFinite(ubicacion.latitude) && isFinite(ubicacion.longitude)) {
       let latLng = new google.maps.LatLng(ubicacion.latitude, ubicacion.longitude);
 
+  
       if (markers[numeroEmpleado]) {
-        markers[numeroEmpleado].setPosition(latLng);
-      }
+  markers[numeroEmpleado].setPosition(latLng);
+  const operadorSeleccionado = document.getElementById("operadorSelect").value;
+  if (operadorSeleccionado === numeroEmpleado) {
+    map.setCenter(latLng);
+  }
+}
+
 
       if (
   ubicacion &&
@@ -749,8 +816,8 @@ function centrarEnOperador(numeroEmpleado) {
       } else {
         // Crear nuevo marcador si no existe
         const animDiv = document.createElement("div");
-animDiv.style.width = "40px";
-animDiv.style.height = "40px";
+animDiv.style.width = "70px";
+animDiv.style.height = "70px";
 
 const anim = lottie.loadAnimation({
   container: animDiv,
@@ -761,11 +828,28 @@ const anim = lottie.loadAnimation({
  // asegúrate que este archivo esté en la misma carpeta
 });
 
+// 🏷️ Crear etiqueta con nombre del operador
+const labelDiv = document.createElement("div");
+labelDiv.innerText = `${numeroEmpleado} - ${datos.nombre}`;
+labelDiv.style.position = "absolute";
+labelDiv.style.background = "rgba(0,0,0,0.6)";
+labelDiv.style.color = "white";
+labelDiv.style.fontSize = "13px";
+labelDiv.style.fontWeight = "bold";
+labelDiv.style.padding = "4px 8px";
+labelDiv.style.borderRadius = "6px";
+labelDiv.style.whiteSpace = "nowrap";
+labelDiv.style.transform = "translate(-50%, -130%)";
+labelDiv.style.zIndex = "9999";
+
+
 const customMarker = new google.maps.OverlayView();
 customMarker.onAdd = function () {
   const panes = this.getPanes();
   panes.overlayMouseTarget.appendChild(animDiv);
+  panes.overlayMouseTarget.appendChild(labelDiv);
 };
+
 customMarker.draw = function () {
   const projection = this.getProjection();
   const position = projection.fromLatLngToDivPixel(latLng);
@@ -774,9 +858,14 @@ customMarker.draw = function () {
     animDiv.style.top = position.y + "px";
     animDiv.style.position = "absolute";
     animDiv.style.transform = "translate(-50%, -50%)";
-    animDiv.style.zIndex = "9999";
+
+    labelDiv.style.left = position.x + "px";
+    labelDiv.style.top = position.y + "px";
+    labelDiv.style.position = "absolute";
+    labelDiv.style.transform = "translate(-50%, -130%)";
   }
 };
+
 customMarker.onRemove = function () {
   if (animDiv.parentNode) animDiv.parentNode.removeChild(animDiv);
 };
@@ -850,16 +939,7 @@ if (fechaFiltro) {
 
       // Mostrar puntos en la barra lateral
       coordenadasGlobal.forEach(punto => {
-        const fechaHora = new Date(punto.timestamp).toLocaleString("es-MX", {
-  timeZone: "America/Mexico_City",
-  hour12: false,
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-  hour: "2-digit",
-  minute: "2-digit",
-  second: "2-digit"
-});
+        const fechaHora = formatearFechaHoraMX(punto.timestamp);
         const div = document.createElement("div");
         div.className = "point-item";
         div.innerHTML = `<span class="icono-ubicacion">📌</span><strong>${fechaHora}</strong><br>Lat: ${punto.lat.toFixed(5)}, Lng: ${punto.lng.toFixed(5)}`;
@@ -1028,17 +1108,7 @@ if (coordenadasGlobal.length === 0) {
     }
 
     coordenadasGlobal.slice().reverse().forEach(punto => {
-      const fechaHora = new Date(punto.timestamp).toLocaleString("es-MX", {
-        timeZone: "America/Mexico_City",
-        hour12: false,
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit"
-      });
-
+      const fechaHora = formatearFechaHoraMX(punto.timestamp);
       const div = document.createElement("div");
       div.className = "point-item";
       div.style.background = "#152344";
@@ -1100,16 +1170,7 @@ function exportarHistorial() {
   }
 
   const filas = coordenadasGlobal.map(p => {
-    const fechaHora = new Date(p.timestamp).toLocaleString("es-MX", {
-      timeZone: "America/Mexico_City",
-      hour12: false,
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit"
-    });
+    const fechaHora = formatearFechaHoraMX(p.timestamp);
     return `${fechaHora},${p.lat},${p.lng}`;
   });
 
@@ -1120,6 +1181,7 @@ function exportarHistorial() {
   link.download = 'historial.csv';
   link.click();
 }
+
 
 //regresar a vista previa 
 function reiniciarVista() {
@@ -1150,6 +1212,7 @@ function alternarHistorialInferior() {
     div.style.display = "none";
   }
 }
+
 
 
 
