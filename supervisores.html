@@ -31,15 +31,14 @@
     }
 
     body {
-      margin: 0;
-      background: linear-gradient(135deg, var(--azul-primario), var(--azul-secundario));
-      font-family: 'Segoe UI', sans-serif;
-      color: var(--texto-blanco);
-      display: flex;
-      flex-direction: column;
-      height: 100vh;
-      overflow: hidden;
-    }
+  margin: 0;
+  background: linear-gradient(135deg, var(--azul-primario), var(--azul-secundario));
+  font-family: 'Segoe UI', sans-serif;
+  color: var(--texto-blanco);
+  display: block;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
 
     .top-bar {
       width: 100%;
@@ -91,11 +90,12 @@
     }
 
     #map {
-      flex: 1;
-      width: 100%;
-      border-top: 2px solid rgba(255,255,255,0.2);
-      z-index: 1;
-    }
+  width: 100%;
+  height: 500px;
+  border-top: 2px solid rgba(255,255,255,0.2);
+  z-index: 1;
+}
+
 
     #sidebar {
       position: fixed;
@@ -234,8 +234,7 @@
   <button onclick="iniciarAñadirRuta()">➕ Añadir ruta</button>
   <button onclick="exportarHistorial()">Exportar</button>
   <button onclick="reiniciarVista()">Reiniciar vista</button>
-  <button onclick="alternarHistorialInferior()">📂 Historial abajo</button>
-
+ 
 
   <div class="stats">
     <p id="puntos">Puntos: 0</p>
@@ -252,10 +251,11 @@
 
 <div style="background: #24335f; color: white; padding: 15px; text-align: center;">
   <h3 style="margin: 0; color: var(--amarillo);">📍 Historial reciente</h3>
-  <div id="historialInferior" style="font-size: 14px; max-height: 150px; overflow-y: auto;">
+  <div id="historialInferior" style="font-size: 14px; padding: 20px;">
     <p>No hay datos disponibles.</p>
   </div>
 </div>
+
 
 
 <div id="detalleTramo" style="padding: 15px; background: #24335f; font-weight: bold; text-align: center;">
@@ -1203,15 +1203,141 @@ function obtenerDireccion(lat, lng, callback) {
 }
 
 
-function alternarHistorialInferior() {
-  const div = document.getElementById("historialInferior");
-  if (div.style.display === "none") {
-    llenarHistorialInferior();
-    div.style.display = "block";
-  } else {
-    div.style.display = "none";
+function llenarHistorialInferior() {
+  const contenedorInferior = document.getElementById("historialInferior");
+  contenedorInferior.innerHTML = "";
+
+  const numeroEmpleado = document.getElementById("operadorSelect").value;
+  if (!numeroEmpleado) {
+    contenedorInferior.innerHTML = "<p>📍 Selecciona un operador primero.</p>";
+    return;
   }
+
+  let fechaFiltro = document.getElementById("fechaFiltro").value;
+  if (fechaFiltro) {
+    const fechaObj = new Date(fechaFiltro + "T00:00:00");
+    fechaFiltro = fechaObj.toLocaleString("es-MX", {
+      timeZone: "America/Mexico_City",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit"
+    }).split("/").reverse().join("-");
+  }
+
+  coordenadasGlobal = [];
+  marcadoresHistorial.forEach(m => m.setMap(null));
+  marcadoresHistorial = [];
+  polylines.forEach(p => p.setMap(null));
+  polylines = [];
+
+  database.ref(`historial/${numeroEmpleado}`).once("value", snapshot => {
+    if (!snapshot.exists()) {
+      contenedorInferior.innerHTML = "<p>📍 No hay datos disponibles.</p>";
+      return;
+    }
+
+    // Crear tabla
+    const tabla = document.createElement("table");
+    tabla.style.width = "100%";
+    tabla.style.borderCollapse = "collapse";
+    tabla.style.color = "#fff";
+    tabla.innerHTML = `
+      <thead style="background:#1F3B73;">
+        <tr>
+          <th style="padding:6px;border-bottom:1px solid #555;">🕓 Fecha y hora</th>
+          <th style="padding:6px;border-bottom:1px solid #555;">📍 Latitud</th>
+          <th style="padding:6px;border-bottom:1px solid #555;">📍 Longitud</th>
+          <th style="padding:6px;border-bottom:1px solid #555;">🏠 Dirección</th>
+        </tr>
+      </thead>
+      <tbody id="tbodyHistorial"></tbody>
+    `;
+
+    contenedorInferior.appendChild(tabla);
+    const tbody = document.getElementById("tbodyHistorial");
+
+    snapshot.forEach(childSnapshot => {
+      const punto = childSnapshot.val();
+      const ubicacion = punto.ubicacion || {};
+
+      if (
+        isFinite(ubicacion.latitude) &&
+        isFinite(ubicacion.longitude)
+      ) {
+        const fechaPunto = new Date(ubicacion.timestamp).toLocaleString("es-MX", {
+          timeZone: "America/Mexico_City",
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit"
+        }).split("/").reverse().join("-");
+
+        if (!fechaFiltro || fechaPunto === fechaFiltro) {
+          coordenadasGlobal.push({
+            lat: ubicacion.latitude,
+            lng: ubicacion.longitude,
+            timestamp: ubicacion.timestamp
+          });
+        }
+      }
+    });
+
+    if (coordenadasGlobal.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:10px;">📅 No se encontraron registros para esta fecha.</td></tr>`;
+      return;
+    }
+
+    // Mostrar los puntos
+    coordenadasGlobal.forEach((punto, index) => {
+      const fechaHora = formatearFechaHoraMX(punto.timestamp);
+      const fila = document.createElement("tr");
+
+      obtenerDireccion(punto.lat, punto.lng, (direccion) => {
+        fila.innerHTML = `
+          <td style="padding:6px;border-bottom:1px solid #444;">${fechaHora}</td>
+          <td style="padding:6px;border-bottom:1px solid #444;">${punto.lat.toFixed(5)}</td>
+          <td style="padding:6px;border-bottom:1px solid #444;">${punto.lng.toFixed(5)}</td>
+          <td style="padding:6px;border-bottom:1px solid #444;">${direccion}</td>
+        `;
+      });
+
+      tbody.appendChild(fila);
+
+      // Agregar marcador verde en el mapa
+      const latLng = new google.maps.LatLng(punto.lat, punto.lng);
+      const marker = new google.maps.Marker({
+        position: latLng,
+        map: map,
+        icon: "http://maps.google.com/mapfiles/ms/icons/green-dot.png",
+        title: "Punto histórico"
+      });
+      marcadoresHistorial.push(marker);
+    });
+
+    // Dibujar línea
+    if (coordenadasGlobal.length >= 2) {
+      const polyline = new google.maps.Polyline({
+        path: coordenadasGlobal.map(p => ({ lat: p.lat, lng: p.lng })),
+        geodesic: true,
+        strokeColor: "#00FF00",
+        strokeOpacity: 1.0,
+        strokeWeight: 3,
+        map: map
+      });
+      polylines.push(polyline);
+    }
+
+    // Actualizar resumen
+    let distanciaTotal = 0;
+    for (let i = 1; i < coordenadasGlobal.length; i++) {
+      const p1 = coordenadasGlobal[i - 1];
+      const p2 = coordenadasGlobal[i];
+      distanciaTotal += calcularDistanciaKm(p1.lat, p1.lng, p2.lat, p2.lng);
+    }
+    document.getElementById("distancia").innerText = `Distancia: ${distanciaTotal.toFixed(2)} km`;
+    document.getElementById("puntos").innerText = `Puntos: ${coordenadasGlobal.length}`;
+  });
 }
+
 
 
 
